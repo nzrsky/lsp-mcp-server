@@ -24,9 +24,11 @@ jobs:
     steps:
     - name: Get tag name
       id: get_tag
+      env:
+        INPUT_TAG: ${{ github.event.inputs.tag }}
       run: |
         if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-          echo "tag_name=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+          echo "tag_name=$INPUT_TAG" >> $GITHUB_OUTPUT
         else
           echo "tag_name=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
         fi

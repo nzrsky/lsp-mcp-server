@@ -16,10 +16,15 @@ jobs:
   codeql:
     name: CodeQL Analysis
     runs-on: ubuntu-latest
+    timeout-minutes: 360
     permissions:
       actions: read
       contents: read
       security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ['python', 'ruby', 'javascript']
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -27,19 +32,15 @@ jobs:
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v3
       with:
-        languages: 'cpp'  # CodeQL doesn't support Zig yet, but can analyze it as C++
+        languages: ${{ matrix.language }}
         
-    - name: Setup Zig
-      uses: goto-bus-stop/setup-zig@v2
-      with:
-        version: ${{ env.ZIG_VERSION }}
-        
-    - name: Build for analysis
-      run: |
-        zig build -Doptimize=Debug
+    - name: Autobuild
+      uses: github/codeql-action/autobuild@v3
         
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v3
+      with:
+        category: "/language:${{ matrix.language }}"
 
   dependency-review:
     name: Dependency Review
@@ -126,11 +127,11 @@ jobs:
         echo "Public functions: $pub_functions"
         echo "Documented functions: $documented_functions"
         
-        if [ $pub_functions -gt 0 ]; then
-          coverage=$((documented_functions * 100 / pub_functions))
+        if [ "$pub_functions" -gt 0 ]; then
+          coverage=$(( documented_functions * 100 / pub_functions ))
           echo "Documentation coverage: ${coverage}%"
           
-          if [ $coverage -lt 70 ]; then
+          if [ "$coverage" -lt 70 ]; then
             echo "::warning::Documentation coverage is below 70%"
           fi
         fi
