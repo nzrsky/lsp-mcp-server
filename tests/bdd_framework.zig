@@ -50,7 +50,7 @@ pub const World = struct {
     context: std.StringHashMap([]const u8),
     variables: std.StringHashMap(std.json.Value),
     mcp_server: ?*McpServerProcess = null,
-    lsp_client: ?*LspClientProcess = null,
+    lsp_client: ?*@import("lsp_client").LspClient = null,
     last_response: ?[]const u8 = null,
     last_error: ?[]const u8 = null,
 

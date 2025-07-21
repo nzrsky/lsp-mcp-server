@@ -1,5 +1,5 @@
 const std = @import("std");
-const lsp_client = @import("lsp_client.zig");
+const lsp_client = @import("lsp_client");
 
 const json = std.json;
 

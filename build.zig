@@ -4,12 +4,30 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    // Create modules that can be shared
+    const config_module = b.createModule(.{
+        .root_source_file = b.path("src/config.zig"),
+    });
+    const lsp_client_module = b.createModule(.{
+        .root_source_file = b.path("src/lsp_client.zig"),
+    });
+    lsp_client_module.addImport("config", config_module);
+    
+    const mcp_module = b.createModule(.{
+        .root_source_file = b.path("src/mcp.zig"),
+    });
+    mcp_module.addImport("lsp_client", lsp_client_module);
+
     const exe = b.addExecutable(.{
         .name = "lsp-mcp-server",
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
+    
+    exe.root_module.addImport("config", config_module);
+    exe.root_module.addImport("lsp_client", lsp_client_module);
+    exe.root_module.addImport("mcp", mcp_module);
 
     b.installArtifact(exe);
 
@@ -40,12 +58,10 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     
-    bdd_tests.root_module.addImport("config", b.createModule(.{
-        .root_source_file = b.path("src/config.zig"),
-    }));
-    bdd_tests.root_module.addImport("lsp_client", b.createModule(.{
-        .root_source_file = b.path("src/lsp_client.zig"),
-    }));
+    bdd_tests.root_module.addImport("config", config_module);
+    bdd_tests.root_module.addImport("lsp_client", lsp_client_module);
+    
+    b.installArtifact(bdd_tests);
     
     const bdd_run_cmd = b.addRunArtifact(bdd_tests);
     bdd_run_cmd.step.dependOn(b.getInstallStep());

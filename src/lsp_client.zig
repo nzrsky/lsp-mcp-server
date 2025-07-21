@@ -1,6 +1,6 @@
 const std = @import("std");
 const json = std.json;
-const config = @import("config.zig");
+const config = @import("config");
 
 // Generic LSP protocol types
 pub const Position = struct {

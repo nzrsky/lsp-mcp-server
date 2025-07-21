@@ -1,7 +1,7 @@
 const std = @import("std");
-const mcp = @import("mcp.zig");
-const lsp_client = @import("lsp_client.zig");
-const config = @import("config.zig");
+const mcp = @import("mcp");
+const lsp_client = @import("lsp_client");
+const config = @import("config");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
