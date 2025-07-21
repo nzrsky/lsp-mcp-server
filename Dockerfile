@@ -1,5 +1,5 @@
 # Multi-stage Docker build for lsp-mcp-server
-FROM alpine:3.19 AS zig-builder
+FROM alpine:3.22 AS zig-builder
 
 # Install dependencies for building
 RUN apk add --no-cache \
@@ -22,7 +22,7 @@ COPY . .
 RUN zig build -Doptimize=ReleaseSafe
 
 # Runtime stage
-FROM alpine:3.19
+FROM alpine:3.22
 
 # Install runtime dependencies
 RUN apk add --no-cache \
