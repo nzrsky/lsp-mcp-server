@@ -1,5 +1,5 @@
 const std = @import("std");
-const zls_client = @import("zls_client.zig");
+const lsp_client = @import("lsp_client.zig");
 
 const json = std.json;
 
@@ -56,15 +56,15 @@ const ServerCapabilities = struct {
 
 pub const Server = struct {
     allocator: std.mem.Allocator,
-    zls: *zls_client.ZlsClient,
+    lsp: *lsp_client.LspClient,
     stdin: std.fs.File.Reader,
     stdout: std.fs.File.Writer,
     initialized: bool = false,
 
-    pub fn init(allocator: std.mem.Allocator, zls: *zls_client.ZlsClient) Server {
+    pub fn init(allocator: std.mem.Allocator, lsp: *lsp_client.LspClient) Server {
         return .{
             .allocator = allocator,
-            .zls = zls,
+            .lsp = lsp,
             .stdin = std.io.getStdIn().reader(),
             .stdout = std.io.getStdOut().writer(),
         };
@@ -232,7 +232,7 @@ pub const Server = struct {
             return;
         };
 
-        const result = try self.zls.hover(
+        const result = try self.lsp.hover(
             uri.string,
             @intCast(line.integer),
             @intCast(character.integer),
@@ -267,7 +267,7 @@ pub const Server = struct {
             return;
         };
 
-        const result = try self.zls.definition(
+        const result = try self.lsp.definition(
             uri.string,
             @intCast(line.integer),
             @intCast(character.integer),
@@ -302,7 +302,7 @@ pub const Server = struct {
             return;
         };
 
-        const result = try self.zls.completions(
+        const result = try self.lsp.completion(
             uri.string,
             @intCast(line.integer),
             @intCast(character.integer),
