@@ -64,6 +64,7 @@ pub const Server = struct {
     initialized: bool = false,
     stdio_mode: bool = false,
     once_mode: bool = false,
+    verbose: bool = false,
 
     pub fn init(allocator: std.mem.Allocator, lsp: ?*lsp_client.LspClient, server_config: config.LspServerConfig) Server {
         return .{
@@ -87,6 +88,10 @@ pub const Server = struct {
         self.once_mode = once;
     }
     
+    pub fn setVerbose(self: *Server, verbose: bool) void {
+        self.verbose = verbose;
+    }
+    
     fn getLanguageName(self: *Server) []const u8 {
         // Map language IDs to human-readable names
         if (std.mem.eql(u8, self.server_config.language_id, "zig")) return "Zig";
@@ -106,7 +111,7 @@ pub const Server = struct {
     pub fn run(self: *Server) !void {
         var buf: [65536]u8 = undefined;
         
-        std.debug.print("MCP server ready, waiting for requests...\n", .{});
+        if (self.verbose) std.debug.print("MCP server ready, waiting for requests...\n", .{});
         
         if (self.stdio_mode) {
             // Stdio mode - read raw JSON lines
@@ -114,7 +119,7 @@ pub const Server = struct {
                 const line = try self.stdin.readUntilDelimiterOrEof(&buf, '\n') orelse break;
                 if (line.len == 0) continue;
                 
-                std.debug.print("Received JSON: '{s}'\n", .{line});
+                if (self.verbose) std.debug.print("Received JSON: '{s}'\n", .{line});
                 
                 // In stdio mode, auto-initialize if needed
                 if (!self.initialized) {
@@ -132,7 +137,7 @@ pub const Server = struct {
             while (true) {
                 // Read Content-Length header
                 const header = try self.stdin.readUntilDelimiterOrEof(&buf, '\n') orelse break;
-                std.debug.print("Received header: '{s}'\n", .{header});
+                if (self.verbose) std.debug.print("Received header: '{s}'\n", .{header});
                 if (!std.mem.startsWith(u8, header, "Content-Length: ")) continue;
                 
                 const len_str = header["Content-Length: ".len..];
@@ -145,7 +150,7 @@ pub const Server = struct {
                 if (content_length > buf.len) return error.MessageTooLarge;
                 try self.stdin.readNoEof(buf[0..content_length]);
                 
-                std.debug.print("Received JSON: '{s}'\n", .{buf[0..content_length]});
+                if (self.verbose) std.debug.print("Received JSON: '{s}'\n", .{buf[0..content_length]});
                 
                 // Parse and handle request
                 try self.handleRequest(buf[0..content_length]);
@@ -206,8 +211,12 @@ pub const Server = struct {
             return;
         }
 
-        var tools = std.ArrayList(Tool).init(self.allocator);
-        defer tools.deinit();
+        // Use arena allocator for this request to automatically clean up memory
+        var arena = std.heap.ArenaAllocator.init(self.allocator);
+        defer arena.deinit();
+        const arena_allocator = arena.allocator();
+        
+        var tools = std.ArrayList(Tool).init(arena_allocator);
 
         // Get language name for descriptions
         const language_name = self.getLanguageName();
@@ -217,36 +226,30 @@ pub const Server = struct {
             "source";
 
         // Hover tool
-        var hover_desc = std.ArrayList(u8).init(self.allocator);
-        defer hover_desc.deinit();
-        try hover_desc.writer().print("Get hover information at a specific position in a {s} file", .{language_name});
+        const hover_desc = try std.fmt.allocPrint(arena_allocator, "Get hover information at a specific position in a {s} file", .{language_name});
         
         try tools.append(.{
             .name = "hover",
-            .description = try self.allocator.dupe(u8, hover_desc.items),
-            .inputSchema = try self.createHoverSchema(file_extension),
+            .description = hover_desc,
+            .inputSchema = try self.createHoverSchema(arena_allocator, file_extension),
         });
 
         // Go to definition tool
-        var def_desc = std.ArrayList(u8).init(self.allocator);
-        defer def_desc.deinit();
-        try def_desc.writer().print("Go to definition of symbol at a specific position in {s} code", .{language_name});
+        const def_desc = try std.fmt.allocPrint(arena_allocator, "Go to definition of symbol at a specific position in {s} code", .{language_name});
         
         try tools.append(.{
             .name = "definition",
-            .description = try self.allocator.dupe(u8, def_desc.items),
-            .inputSchema = try self.createDefinitionSchema(file_extension),
+            .description = def_desc,
+            .inputSchema = try self.createDefinitionSchema(arena_allocator, file_extension),
         });
 
         // Code completions tool
-        var comp_desc = std.ArrayList(u8).init(self.allocator);
-        defer comp_desc.deinit();
-        try comp_desc.writer().print("Get code completions at a specific position in {s} code", .{language_name});
+        const comp_desc = try std.fmt.allocPrint(arena_allocator, "Get code completions at a specific position in {s} code", .{language_name});
         
         try tools.append(.{
             .name = "completions",
-            .description = try self.allocator.dupe(u8, comp_desc.items),
-            .inputSchema = try self.createCompletionsSchema(file_extension),
+            .description = comp_desc,
+            .inputSchema = try self.createCompletionsSchema(arena_allocator, file_extension),
         });
 
         var tools_string = std.ArrayList(u8).init(self.allocator);
@@ -410,18 +413,16 @@ pub const Server = struct {
         try self.sendResponse(response);
     }
 
-    fn createHoverSchema(self: *Server, file_extension: []const u8) !json.Value {
+    fn createHoverSchema(_: *Server, allocator: std.mem.Allocator, file_extension: []const u8) !json.Value {
         // Create URI description with the appropriate file extension
-        var uri_desc = std.ArrayList(u8).init(self.allocator);
-        defer uri_desc.deinit();
-        try uri_desc.writer().print("File URI (e.g., file:///path/to/file{s})", .{file_extension});
+        const uri_desc = try std.fmt.allocPrint(allocator, "File URI (e.g., file:///path/to/file{s})", .{file_extension});
         
         const schema = .{
             .type = "object",
             .properties = .{
                 .uri = .{
                     .type = "string",
-                    .description = try self.allocator.dupe(u8, uri_desc.items),
+                    .description = uri_desc,
                 },
                 .line = .{
                     .type = "integer",
@@ -434,20 +435,20 @@ pub const Server = struct {
             },
             .required = .{ "uri", "line", "character" },
         };
-        var schema_string = std.ArrayList(u8).init(self.allocator);
+        var schema_string = std.ArrayList(u8).init(allocator);
         defer schema_string.deinit();
         try json.stringify(schema, .{}, schema_string.writer());
         
-        const schema_value = try json.parseFromSlice(json.Value, self.allocator, schema_string.items, .{});
+        const schema_value = try json.parseFromSlice(json.Value, allocator, schema_string.items, .{});
         return schema_value.value;
     }
 
-    fn createDefinitionSchema(self: *Server, file_extension: []const u8) !json.Value {
-        return self.createHoverSchema(file_extension); // Same schema
+    fn createDefinitionSchema(self: *Server, allocator: std.mem.Allocator, file_extension: []const u8) !json.Value {
+        return self.createHoverSchema(allocator, file_extension); // Same schema
     }
 
-    fn createCompletionsSchema(self: *Server, file_extension: []const u8) !json.Value {
-        return self.createHoverSchema(file_extension); // Same schema
+    fn createCompletionsSchema(self: *Server, allocator: std.mem.Allocator, file_extension: []const u8) !json.Value {
+        return self.createHoverSchema(allocator, file_extension); // Same schema
     }
 
     fn sendResponse(self: *Server, response: JsonRpcResponse) !void {

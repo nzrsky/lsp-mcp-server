@@ -16,6 +16,7 @@ pub fn main() !void {
     var config_file: ?[]const u8 = null;
     var stdio_mode: bool = false;
     var once_mode: bool = false;
+    var verbose: bool = false;
 
     var i: usize = 1;
     while (i < args.len) : (i += 1) {
@@ -33,9 +34,26 @@ pub fn main() !void {
             stdio_mode = true;
         } else if (std.mem.eql(u8, args[i], "--once")) {
             once_mode = true;
+        } else if (std.mem.eql(u8, args[i], "--verbose") or std.mem.eql(u8, args[i], "-v")) {
+            verbose = true;
         } else if (std.mem.eql(u8, args[i], "--help") or std.mem.eql(u8, args[i], "-h")) {
             try printUsage();
             return;
+        }
+    }
+
+    // Auto-detect stdio mode when input is piped (unless explicitly overridden)
+    if (!stdio_mode) {
+        const stdin_file = std.io.getStdIn();
+        const is_tty = stdin_file.isTty();
+        
+        // Only auto-detect stdio mode if stdin is definitely not a TTY (piped/redirected)
+        if (!is_tty) {
+            stdio_mode = true;
+            once_mode = true;
+            if (verbose) std.debug.print("Auto-detected stdio mode (stdin is not a TTY)\n", .{});
+        } else {
+            if (verbose) std.debug.print("Interactive mode (stdin is a TTY)\n", .{});
         }
     }
 
@@ -62,7 +80,7 @@ pub fn main() !void {
         return;
     };
 
-    std.debug.print("Main: Looking for server command: {s}\n", .{server_config.command});
+    if (verbose) std.debug.print("Main: Looking for server command: {s}\n", .{server_config.command});
     
     // Update server configuration with actual command path
     var actual_config = server_config;
@@ -72,36 +90,36 @@ pub fn main() !void {
         return;
     };
     
-    std.debug.print("Main: Found server command at: {s}\n", .{actual_config.command});
+    if (verbose) std.debug.print("Main: Found server command at: {s}\n", .{actual_config.command});
 
     // Skip LSP initialization in stdio+once mode for quick testing
     var lsp_available = false;
     var lsp: lsp_client.LspClient = undefined;
     
     if (!(stdio_mode and once_mode)) {
-        std.debug.print("Main: Initializing LSP client for command: {s}\n", .{actual_config.command});
+        if (verbose) std.debug.print("Main: Initializing LSP client for command: {s}\n", .{actual_config.command});
         
         // Initialize LSP client
         lsp = try lsp_client.LspClient.init(allocator, actual_config);
         defer lsp.deinit();
         
-        std.debug.print("Main: Starting LSP server...\n", .{});
+        if (verbose) std.debug.print("Main: Starting LSP server...\n", .{});
         
         // Start LSP server with error handling
         lsp_available = true;
         lsp.start() catch |err| {
-            std.debug.print("Warning: LSP server failed to start: {}. MCP server will run without LSP backend.\n", .{err});
+            if (verbose) std.debug.print("Warning: LSP server failed to start: {}. MCP server will run without LSP backend.\n", .{err});
             lsp_available = false;
         };
         
         if (lsp_available) {
             defer lsp.stop();
-            std.debug.print("Main: LSP server started successfully!\n", .{});
+            if (verbose) std.debug.print("Main: LSP server started successfully!\n", .{});
         } else {
-            std.debug.print("Main: Continuing without LSP server...\n", .{});
+            if (verbose) std.debug.print("Main: Continuing without LSP server...\n", .{});
         }
     } else {
-        std.debug.print("Main: Skipping LSP initialization in stdio+once mode\n", .{});
+        if (verbose) std.debug.print("Main: Skipping LSP initialization in stdio+once mode\n", .{});
     }
 
     // Initialize and start MCP server
@@ -112,8 +130,9 @@ pub fn main() !void {
     // Set transport mode
     server.setStdioMode(stdio_mode);
     server.setOnceMode(once_mode);
+    server.setVerbose(verbose);
 
-    std.debug.print("Starting LSP-MCP bridge server for '{s}'...\n", .{server_name});
+    if (verbose) std.debug.print("Starting LSP-MCP bridge server for '{s}'...\n", .{server_name});
     try server.run();
 }
 
