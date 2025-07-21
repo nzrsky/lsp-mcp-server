@@ -46,7 +46,7 @@ pub fn main() !void {
     if (!stdio_mode) {
         const stdin_file = std.io.getStdIn();
         const is_tty = stdin_file.isTty();
-        
+
         // Only auto-detect stdio mode if stdin is definitely not a TTY (piped/redirected)
         if (!is_tty) {
             stdio_mode = true;
@@ -60,9 +60,9 @@ pub fn main() !void {
     // Initialize server configurations
     var server_configs = config.ServerConfigs.init(allocator);
     defer server_configs.deinit();
-    
+
     try server_configs.registerDefaults();
-    
+
     // Load additional configurations if provided
     if (config_file) |path| {
         server_configs.loadFromFile(allocator, path) catch |err| {
@@ -81,7 +81,7 @@ pub fn main() !void {
     };
 
     if (verbose) std.debug.print("Main: Looking for server command: {s}\n", .{server_config.command});
-    
+
     // Update server configuration with actual command path
     var actual_config = server_config;
     actual_config.command = try findServerCommand(allocator, server_config.command) orelse {
@@ -89,29 +89,29 @@ pub fn main() !void {
         std.debug.print("Installation hint: {s}\n", .{server_config.install_hint});
         return;
     };
-    
+
     if (verbose) std.debug.print("Main: Found server command at: {s}\n", .{actual_config.command});
 
     // Skip LSP initialization in stdio+once mode for quick testing
     var lsp_available = false;
     var lsp: lsp_client.LspClient = undefined;
-    
+
     if (!(stdio_mode and once_mode)) {
         if (verbose) std.debug.print("Main: Initializing LSP client for command: {s}\n", .{actual_config.command});
-        
+
         // Initialize LSP client
         lsp = try lsp_client.LspClient.init(allocator, actual_config);
         defer lsp.deinit();
-        
+
         if (verbose) std.debug.print("Main: Starting LSP server...\n", .{});
-        
+
         // Start LSP server with error handling
         lsp_available = true;
         lsp.start() catch |err| {
             if (verbose) std.debug.print("Warning: LSP server failed to start: {}. MCP server will run without LSP backend.\n", .{err});
             lsp_available = false;
         };
-        
+
         if (lsp_available) {
             defer lsp.stop();
             if (verbose) std.debug.print("Main: LSP server started successfully!\n", .{});
@@ -126,7 +126,7 @@ pub fn main() !void {
     const lsp_ptr = if (lsp_available) &lsp else null;
     var server = mcp.Server.init(allocator, lsp_ptr, actual_config);
     defer server.deinit();
-    
+
     // Set transport mode
     server.setStdioMode(stdio_mode);
     server.setOnceMode(once_mode);
@@ -162,14 +162,14 @@ fn findServerCommand(allocator: std.mem.Allocator, command: []const u8) !?[]cons
     var child = std.process.Child.init(&.{ "which", command }, allocator);
     child.stdout_behavior = .Pipe;
     child.stderr_behavior = .Close;
-    
+
     try child.spawn();
-    
+
     const stdout = try child.stdout.?.readToEndAlloc(allocator, 1024 * 1024);
     defer allocator.free(stdout);
-    
+
     const term = try child.wait();
-    
+
     switch (term) {
         .Exited => |code| {
             if (code == 0) {
@@ -178,7 +178,7 @@ fn findServerCommand(allocator: std.mem.Allocator, command: []const u8) !?[]cons
         },
         else => {},
     }
-    
+
     return null;
 }
 

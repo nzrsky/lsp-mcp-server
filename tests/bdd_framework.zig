@@ -77,7 +77,7 @@ pub const World = struct {
         if (self.last_error) |err| {
             self.allocator.free(err);
         }
-        
+
         var ctx_iter = self.context.iterator();
         while (ctx_iter.next()) |entry| {
             self.allocator.free(entry.key_ptr.*);
@@ -121,7 +121,7 @@ pub const McpServerProcess = struct {
 
     pub fn init(allocator: std.mem.Allocator, command: []const u8, args: [][]const u8) !*McpServerProcess {
         const self = try allocator.create(McpServerProcess);
-        
+
         var argv = std.ArrayList([]const u8).init(allocator);
         defer argv.deinit();
         try argv.append(command);
@@ -159,9 +159,9 @@ pub const McpServerProcess = struct {
 
     pub fn readResponse(self: *McpServerProcess, timeout_ms: u64) ![]u8 {
         var buf: [65536]u8 = undefined;
-        
+
         const start_time = std.time.milliTimestamp();
-        
+
         // Read Content-Length header
         while (std.time.milliTimestamp() - start_time < timeout_ms) {
             if (self.stdout.readUntilDelimiterOrEof(&buf, '\n')) |header_opt| {
@@ -169,10 +169,10 @@ pub const McpServerProcess = struct {
                     if (std.mem.startsWith(u8, header, "Content-Length: ")) {
                         const len_str = header["Content-Length: ".len..];
                         const content_length = try std.fmt.parseInt(usize, std.mem.trim(u8, len_str, "\r"), 10);
-                        
+
                         // Skip empty line
                         _ = try self.stdout.readUntilDelimiterOrEof(&buf, '\n');
-                        
+
                         // Read JSON content
                         if (content_length <= buf.len) {
                             try self.stdout.readNoEof(buf[0..content_length]);
@@ -184,7 +184,7 @@ pub const McpServerProcess = struct {
                 break;
             }
         }
-        
+
         return error.Timeout;
     }
 };
@@ -197,7 +197,7 @@ pub const LspClientProcess = struct {
 
     pub fn init(allocator: std.mem.Allocator, command: []const u8, args: [][]const u8) !*LspClientProcess {
         const self = try allocator.create(LspClientProcess);
-        
+
         var argv = std.ArrayList([]const u8).init(allocator);
         defer argv.deinit();
         try argv.append(command);
@@ -347,7 +347,7 @@ pub const Runner = struct {
 
     pub fn runScenario(self: *Runner, scenario: Scenario, background: ?Feature.Background) !void {
         self.results.total_scenarios += 1;
-        
+
         if (scenario.pending) {
             self.results.pending_scenarios += 1;
             std.debug.print("  Scenario: {s} (PENDING)\n", .{scenario.name});
@@ -355,7 +355,7 @@ pub const Runner = struct {
         }
 
         std.debug.print("  Scenario: {s}\n", .{scenario.name});
-        
+
         var world = World.init(self.allocator);
         defer world.deinit();
 
@@ -406,15 +406,15 @@ pub const Runner = struct {
 
     pub fn runStep(self: *Runner, world: *World, step: Scenario.Step) !void {
         self.results.total_steps += 1;
-        
+
         const step_kind_str = switch (step.kind) {
             .given => "Given",
-            .when => "When", 
+            .when => "When",
             .then => "Then",
             .@"and" => "And",
             .but => "But",
         };
-        
+
         std.debug.print("    {s} {s}\n", .{ step_kind_str, step.text });
 
         if (self.step_definitions.matchStep(step.text, self.allocator)) |match| {
@@ -432,7 +432,7 @@ pub const Runner = struct {
 
     pub fn runAll(self: *Runner) !void {
         std.debug.print("Running BDD tests...\n\n", .{});
-        
+
         for (self.features.items) |feature| {
             try self.runFeature(feature);
             std.debug.print("\n", .{});

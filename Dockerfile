@@ -10,7 +10,7 @@ RUN apk add --no-cache \
     linux-headers
 
 # Install Zig
-ARG ZIG_VERSION=0.13.0
+ARG ZIG_VERSION=0.14.1
 RUN curl -L "https://ziglang.org/download/${ZIG_VERSION}/zig-linux-x86_64-${ZIG_VERSION}.tar.xz" | tar -xJ -C /opt && \
     ln -s /opt/zig-linux-x86_64-${ZIG_VERSION}/zig /usr/local/bin/zig
 
@@ -47,7 +47,7 @@ RUN npm install -g typescript-language-server typescript && \
     cargo install rust-analyzer
 
 # Install ZLS (Zig Language Server)
-ARG ZLS_VERSION=0.13.0
+ARG ZLS_VERSION=0.14.0
 RUN curl -L "https://github.com/zigtools/zls/releases/download/${ZLS_VERSION}/zls-x86_64-linux.tar.xz" | tar -xJ -C /usr/local/bin
 
 # Copy the built binary

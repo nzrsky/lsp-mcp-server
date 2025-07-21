@@ -79,19 +79,19 @@ pub const Server = struct {
     pub fn deinit(self: *Server) void {
         _ = self;
     }
-    
+
     pub fn setStdioMode(self: *Server, stdio: bool) void {
         self.stdio_mode = stdio;
     }
-    
+
     pub fn setOnceMode(self: *Server, once: bool) void {
         self.once_mode = once;
     }
-    
+
     pub fn setVerbose(self: *Server, verbose: bool) void {
         self.verbose = verbose;
     }
-    
+
     fn getLanguageName(self: *Server) []const u8 {
         // Map language IDs to human-readable names
         if (std.mem.eql(u8, self.server_config.language_id, "zig")) return "Zig";
@@ -103,32 +103,32 @@ pub const Server = struct {
         if (std.mem.eql(u8, self.server_config.language_id, "cpp")) return "C/C++";
         if (std.mem.eql(u8, self.server_config.language_id, "c")) return "C";
         if (std.mem.eql(u8, self.server_config.language_id, "java")) return "Java";
-        
+
         // Fallback to language_id with first letter capitalized
         return self.server_config.language_id;
     }
 
     pub fn run(self: *Server) !void {
         var buf: [65536]u8 = undefined;
-        
+
         if (self.verbose) std.debug.print("MCP server ready, waiting for requests...\n", .{});
-        
+
         if (self.stdio_mode) {
             // Stdio mode - read raw JSON lines
             while (true) {
                 const line = try self.stdin.readUntilDelimiterOrEof(&buf, '\n') orelse break;
                 if (line.len == 0) continue;
-                
+
                 if (self.verbose) std.debug.print("Received JSON: '{s}'\n", .{line});
-                
+
                 // In stdio mode, auto-initialize if needed
                 if (!self.initialized) {
                     self.initialized = true;
                 }
-                
+
                 // Parse and handle request
                 try self.handleRequest(line);
-                
+
                 // Exit after one request if in once mode
                 if (self.once_mode) break;
             }
@@ -139,22 +139,22 @@ pub const Server = struct {
                 const header = try self.stdin.readUntilDelimiterOrEof(&buf, '\n') orelse break;
                 if (self.verbose) std.debug.print("Received header: '{s}'\n", .{header});
                 if (!std.mem.startsWith(u8, header, "Content-Length: ")) continue;
-                
+
                 const len_str = header["Content-Length: ".len..];
                 const content_length = try std.fmt.parseInt(usize, std.mem.trim(u8, len_str, "\r"), 10);
-                
+
                 // Skip empty line
                 _ = try self.stdin.readUntilDelimiterOrEof(&buf, '\n');
-                
+
                 // Read JSON content
                 if (content_length > buf.len) return error.MessageTooLarge;
                 try self.stdin.readNoEof(buf[0..content_length]);
-                
+
                 if (self.verbose) std.debug.print("Received JSON: '{s}'\n", .{buf[0..content_length]});
-                
+
                 // Parse and handle request
                 try self.handleRequest(buf[0..content_length]);
-                
+
                 // Exit after one request if in once mode
                 if (self.once_mode) break;
             }
@@ -164,9 +164,9 @@ pub const Server = struct {
     fn handleRequest(self: *Server, data: []const u8) !void {
         var parsed = try json.parseFromSlice(JsonRpcRequest, self.allocator, data, .{});
         defer parsed.deinit();
-        
+
         const request = parsed.value;
-        
+
         if (std.mem.eql(u8, request.method, "initialize")) {
             try self.handleInitialize(request);
         } else if (std.mem.eql(u8, request.method, "tools/list")) {
@@ -180,7 +180,7 @@ pub const Server = struct {
 
     fn handleInitialize(self: *Server, request: JsonRpcRequest) !void {
         self.initialized = true;
-        
+
         const result = ServerCapabilities{
             .capabilities = .{
                 .tools = .{},
@@ -193,15 +193,15 @@ pub const Server = struct {
         var string = std.ArrayList(u8).init(self.allocator);
         defer string.deinit();
         try json.stringify(result, .{}, string.writer());
-        
+
         const result_value = try json.parseFromSlice(json.Value, self.allocator, string.items, .{});
         defer result_value.deinit();
-        
+
         const response = JsonRpcResponse{
             .id = request.id,
             .result = result_value.value,
         };
-        
+
         try self.sendResponse(response);
     }
 
@@ -215,19 +215,19 @@ pub const Server = struct {
         var arena = std.heap.ArenaAllocator.init(self.allocator);
         defer arena.deinit();
         const arena_allocator = arena.allocator();
-        
+
         var tools = std.ArrayList(Tool).init(arena_allocator);
 
         // Get language name for descriptions
         const language_name = self.getLanguageName();
-        const file_extension = if (self.server_config.file_extensions.len > 0) 
-            self.server_config.file_extensions[0] 
-        else 
+        const file_extension = if (self.server_config.file_extensions.len > 0)
+            self.server_config.file_extensions[0]
+        else
             "source";
 
         // Hover tool
         const hover_desc = try std.fmt.allocPrint(arena_allocator, "Get hover information at a specific position in a {s} file", .{language_name});
-        
+
         try tools.append(.{
             .name = "hover",
             .description = hover_desc,
@@ -236,7 +236,7 @@ pub const Server = struct {
 
         // Go to definition tool
         const def_desc = try std.fmt.allocPrint(arena_allocator, "Go to definition of symbol at a specific position in {s} code", .{language_name});
-        
+
         try tools.append(.{
             .name = "definition",
             .description = def_desc,
@@ -245,7 +245,7 @@ pub const Server = struct {
 
         // Code completions tool
         const comp_desc = try std.fmt.allocPrint(arena_allocator, "Get code completions at a specific position in {s} code", .{language_name});
-        
+
         try tools.append(.{
             .name = "completions",
             .description = comp_desc,
@@ -255,15 +255,15 @@ pub const Server = struct {
         var tools_string = std.ArrayList(u8).init(self.allocator);
         defer tools_string.deinit();
         try json.stringify(tools.items, .{}, tools_string.writer());
-        
+
         const tools_value = try json.parseFromSlice(json.Value, self.allocator, tools_string.items, .{});
         defer tools_value.deinit();
-        
+
         const response = JsonRpcResponse{
             .id = request.id,
             .result = tools_value.value,
         };
-        
+
         try self.sendResponse(response);
     }
 
@@ -325,15 +325,15 @@ pub const Server = struct {
         var result_string = std.ArrayList(u8).init(self.allocator);
         defer result_string.deinit();
         try json.stringify(result, .{}, result_string.writer());
-        
+
         const result_value = try json.parseFromSlice(json.Value, self.allocator, result_string.items, .{});
         defer result_value.deinit();
-        
+
         const response = JsonRpcResponse{
             .id = id,
             .result = result_value.value,
         };
-        
+
         try self.sendResponse(response);
     }
 
@@ -363,15 +363,15 @@ pub const Server = struct {
         var result_string = std.ArrayList(u8).init(self.allocator);
         defer result_string.deinit();
         try json.stringify(result, .{}, result_string.writer());
-        
+
         const result_value = try json.parseFromSlice(json.Value, self.allocator, result_string.items, .{});
         defer result_value.deinit();
-        
+
         const response = JsonRpcResponse{
             .id = id,
             .result = result_value.value,
         };
-        
+
         try self.sendResponse(response);
     }
 
@@ -401,22 +401,22 @@ pub const Server = struct {
         var result_string = std.ArrayList(u8).init(self.allocator);
         defer result_string.deinit();
         try json.stringify(result, .{}, result_string.writer());
-        
+
         const result_value = try json.parseFromSlice(json.Value, self.allocator, result_string.items, .{});
         defer result_value.deinit();
-        
+
         const response = JsonRpcResponse{
             .id = id,
             .result = result_value.value,
         };
-        
+
         try self.sendResponse(response);
     }
 
     fn createHoverSchema(_: *Server, allocator: std.mem.Allocator, file_extension: []const u8) !json.Value {
         // Create URI description with the appropriate file extension
         const uri_desc = try std.fmt.allocPrint(allocator, "File URI (e.g., file:///path/to/file{s})", .{file_extension});
-        
+
         const schema = .{
             .type = "object",
             .properties = .{
@@ -438,7 +438,7 @@ pub const Server = struct {
         var schema_string = std.ArrayList(u8).init(allocator);
         defer schema_string.deinit();
         try json.stringify(schema, .{}, schema_string.writer());
-        
+
         const schema_value = try json.parseFromSlice(json.Value, allocator, schema_string.items, .{});
         return schema_value.value;
     }
@@ -454,9 +454,9 @@ pub const Server = struct {
     fn sendResponse(self: *Server, response: JsonRpcResponse) !void {
         var string = std.ArrayList(u8).init(self.allocator);
         defer string.deinit();
-        
+
         try json.stringify(response, .{}, string.writer());
-        
+
         if (self.stdio_mode) {
             // Stdio mode - just output JSON
             try self.stdout.writeAll(string.items);

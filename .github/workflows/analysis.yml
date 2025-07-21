@@ -10,7 +10,7 @@ on:
     - cron: '0 1 * * 2'
 
 env:
-  ZIG_VERSION: '0.13.0'
+  ZIG_VERSION: '0.14.1'
 
 jobs:
   codeql:
@@ -197,7 +197,7 @@ jobs:
         
     - name: Build optimized
       run: |
-        zig build -Doptimize=ReleaseFast
+        BUILD_MODE=ReleaseFast make build
         
     - name: Install analysis tools
       run: |
@@ -210,12 +210,12 @@ jobs:
         ls -lh zig-out/bin/lsp-mcp-server
         
         # Compare with debug build
-        zig build -Doptimize=Debug
+        make debug
         ls -lh zig-out/bin/lsp-mcp-server
         mv zig-out/bin/lsp-mcp-server zig-out/bin/lsp-mcp-server-debug
         
         # Rebuild optimized
-        zig build -Doptimize=ReleaseFast
+        BUILD_MODE=ReleaseFast make build
         
         echo "Size comparison:"
         echo "Debug: $(stat -f%z zig-out/bin/lsp-mcp-server-debug 2>/dev/null || stat -c%s zig-out/bin/lsp-mcp-server-debug) bytes"
@@ -226,7 +226,7 @@ jobs:
         echo "=== Startup Time Benchmark ==="
         
         echo "Help command timing:"
-        hyperfine --warmup 3 './zig-out/bin/lsp-mcp-server --help'
+        hyperfine --warmup 3 'make benchmark'
         
     - name: Memory usage analysis
       run: |
@@ -261,8 +261,8 @@ jobs:
         
     - name: Build with ${{ matrix.optimize }}
       run: |
-        echo "Building with -Doptimize=${{ matrix.optimize }}"
-        time zig build -Doptimize=${{ matrix.optimize }}
+        echo "Building with BUILD_MODE=${{ matrix.optimize }}"
+        time BUILD_MODE=${{ matrix.optimize }} make build
         
         echo "Binary info:"
         ls -lh zig-out/bin/lsp-mcp-server*

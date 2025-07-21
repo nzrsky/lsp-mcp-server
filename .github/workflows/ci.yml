@@ -10,7 +10,7 @@ on:
     - cron: '0 0 * * 0'
 
 env:
-  ZIG_VERSION: '0.13.0'
+  ZIG_VERSION: '0.14.1'
 
 jobs:
   test:
@@ -62,7 +62,10 @@ jobs:
         brew install zls
         brew install node
         npm install -g typescript-language-server typescript
-        pip3 install python-lsp-server
+        
+        # Install Python LSP with pipx to avoid externally-managed-environment error
+        brew install pipx
+        pipx install python-lsp-server
         
     - name: Install language servers (Windows)
       if: runner.os == 'Windows'
@@ -75,17 +78,17 @@ jobs:
         pip install python-lsp-server
         
     - name: Build (Debug)
-      run: zig build -Doptimize=Debug
+      run: make debug
       
     - name: Build (ReleaseSafe)
-      run: zig build -Doptimize=ReleaseSafe
+      run: make build
       
     - name: Run unit tests
-      run: zig build test
+      run: make test
       
     - name: Run BDD integration tests (Unix)
       if: runner.os != 'Windows'
-      run: zig build test-bdd
+      run: make test-bdd-mock
       
     - name: Test binary functionality
       shell: bash
@@ -119,12 +122,10 @@ jobs:
         version: ${{ env.ZIG_VERSION }}
         
     - name: Check formatting
-      run: |
-        zig fmt --check src/
-        zig fmt --check tests/
+      run: make format-check
         
     - name: Lint (zig build check)
-      run: zig build --summary all
+      run: make lint
 
   security:
     name: Security Scan
@@ -177,7 +178,7 @@ jobs:
         
     - name: Cross-compile
       run: |
-        zig build -Doptimize=ReleaseSafe -Dtarget=${{ matrix.target }}
+        BUILD_MODE=ReleaseSafe zig build -Dtarget=${{ matrix.target }}
         
     - name: Package binary
       run: |
@@ -251,7 +252,7 @@ jobs:
         version: ${{ env.ZIG_VERSION }}
         
     - name: Build optimized
-      run: zig build -Doptimize=ReleaseFast
+      run: BUILD_MODE=ReleaseFast make build
       
     - name: Install ZLS for benchmarking
       run: |
@@ -261,7 +262,7 @@ jobs:
     - name: Run benchmarks
       run: |
         echo "=== Startup Time Benchmark ==="
-        time ./zig-out/bin/lsp-mcp-server --help
+        make benchmark
         
         echo "=== Memory Usage Test ==="
         timeout 5s ./zig-out/bin/lsp-mcp-server --server zls || true

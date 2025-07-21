@@ -41,18 +41,14 @@ pub fn registerMcpSteps(step_definitions: *bdd.StepDefinitions) !void {
 
 fn givenMcpServerAvailable(world: *bdd.World, matches: [][]const u8) !void {
     _ = matches;
-    
+
     // Start the MCP server process
-    const server = try bdd.McpServerProcess.init(
-        world.allocator,
-        "./zig-out/bin/zls-mcp-server",
-        &.{}
-    );
+    const server = try bdd.McpServerProcess.init(world.allocator, "./zig-out/bin/zls-mcp-server", &.{});
     world.mcp_server = server;
-    
+
     // Give the server a moment to start
     std.time.sleep(100 * std.time.ns_per_ms);
-    
+
     try world.setContext("mcp_server_available", "true");
 }
 
@@ -68,9 +64,9 @@ fn givenMcpServerNotInitialized(world: *bdd.World, matches: [][]const u8) !void 
 
 fn whenSendInitializeRequest(world: *bdd.World, matches: [][]const u8) !void {
     _ = matches;
-    
+
     if (world.mcp_server) |server| {
-        const init_request = 
+        const init_request =
             \\{
             \\  "jsonrpc": "2.0",
             \\  "id": 1,
@@ -87,7 +83,7 @@ fn whenSendInitializeRequest(world: *bdd.World, matches: [][]const u8) !void {
             \\  }
             \\}
         ;
-        
+
         try server.sendRequest(init_request);
         try world.setContext("initialize_request_sent", "true");
     } else {
@@ -97,7 +93,7 @@ fn whenSendInitializeRequest(world: *bdd.World, matches: [][]const u8) !void {
 
 fn thenReceiveInitializeResponse(world: *bdd.World, matches: [][]const u8) !void {
     _ = matches;
-    
+
     if (world.mcp_server) |server| {
         const response = server.readResponse(5000) catch |err| switch (err) {
             error.Timeout => {
@@ -107,37 +103,32 @@ fn thenReceiveInitializeResponse(world: *bdd.World, matches: [][]const u8) !void
             else => return err,
         };
         defer world.allocator.free(response);
-        
+
         // Parse response to verify it's valid
-        const parsed = std.json.parseFromSlice(
-            struct {
-                jsonrpc: []const u8,
-                id: u32,
-                result: ?struct {
-                    protocolVersion: []const u8,
-                    capabilities: std.json.Value,
-                    serverInfo: struct {
-                        name: []const u8,
-                        version: []const u8,
-                    },
-                } = null,
-                @"error": ?std.json.Value = null,
-            },
-            world.allocator,
-            response,
-            .{}
-        ) catch return error.InvalidInitializeResponse;
+        const parsed = std.json.parseFromSlice(struct {
+            jsonrpc: []const u8,
+            id: u32,
+            result: ?struct {
+                protocolVersion: []const u8,
+                capabilities: std.json.Value,
+                serverInfo: struct {
+                    name: []const u8,
+                    version: []const u8,
+                },
+            } = null,
+            @"error": ?std.json.Value = null,
+        }, world.allocator, response, .{}) catch return error.InvalidInitializeResponse;
         defer parsed.deinit();
-        
+
         if (parsed.value.@"error" != null) {
             std.debug.print("Initialize error: {}\n", .{parsed.value.@"error".?});
             return error.InitializeError;
         }
-        
+
         if (parsed.value.result == null) {
             return error.NoInitializeResult;
         }
-        
+
         try world.setContext("initialize_response_received", "true");
         if (world.last_response) |old| {
             world.allocator.free(old);
@@ -150,9 +141,9 @@ fn thenReceiveInitializeResponse(world: *bdd.World, matches: [][]const u8) !void
 
 fn thenResponseContainsCapabilities(world: *bdd.World, matches: [][]const u8) !void {
     _ = matches;
-    
+
     const response = world.last_response orelse return error.NoLastResponse;
-    
+
     if (std.mem.indexOf(u8, response, "capabilities") == null) {
         return error.NoCapsInResponse;
     }
@@ -160,9 +151,9 @@ fn thenResponseContainsCapabilities(world: *bdd.World, matches: [][]const u8) !v
 
 fn thenResponseIndicatesToolSupport(world: *bdd.World, matches: [][]const u8) !void {
     _ = matches;
-    
+
     const response = world.last_response orelse return error.NoLastResponse;
-    
+
     if (std.mem.indexOf(u8, response, "tools") == null) {
         return error.NoToolSupportInResponse;
     }
@@ -175,33 +166,33 @@ fn thenServerMarkedInitialized(world: *bdd.World, matches: [][]const u8) !void {
 
 fn givenMcpServerInitialized(world: *bdd.World, matches: [][]const u8) !void {
     _ = matches;
-    
+
     // Start server if not already started
     if (world.mcp_server == null) {
         try givenMcpServerAvailable(world, &.{});
     }
-    
+
     // Send initialize request
     try whenSendInitializeRequest(world, &.{});
-    
+
     // Wait for and verify initialize response
     try thenReceiveInitializeResponse(world, &.{});
-    
+
     try world.setContext("mcp_server_initialized", "true");
 }
 
 fn whenSendToolsListRequest(world: *bdd.World, matches: [][]const u8) !void {
     _ = matches;
-    
+
     if (world.mcp_server) |server| {
-        const tools_request = 
+        const tools_request =
             \\{
             \\  "jsonrpc": "2.0",
             \\  "id": 2,
             \\  "method": "tools/list"
             \\}
         ;
-        
+
         try server.sendRequest(tools_request);
         try world.setContext("tools_list_request_sent", "true");
     } else {
@@ -211,7 +202,7 @@ fn whenSendToolsListRequest(world: *bdd.World, matches: [][]const u8) !void {
 
 fn thenReceiveToolsList(world: *bdd.World, matches: [][]const u8) !void {
     _ = matches;
-    
+
     if (world.mcp_server) |server| {
         const response = server.readResponse(5000) catch |err| switch (err) {
             error.Timeout => {
@@ -221,32 +212,27 @@ fn thenReceiveToolsList(world: *bdd.World, matches: [][]const u8) !void {
             else => return err,
         };
         defer world.allocator.free(response);
-        
+
         // Store response for further verification
         if (world.last_response) |old| {
             world.allocator.free(old);
         }
         world.last_response = try world.allocator.dupe(u8, response);
-        
+
         // Verify it's a valid tools list response
-        const parsed = std.json.parseFromSlice(
-            struct {
-                result: ?[]struct {
-                    name: []const u8,
-                    description: []const u8,
-                    inputSchema: std.json.Value,
-                } = null,
-            },
-            world.allocator,
-            response,
-            .{}
-        ) catch return error.InvalidToolsListResponse;
+        const parsed = std.json.parseFromSlice(struct {
+            result: ?[]struct {
+                name: []const u8,
+                description: []const u8,
+                inputSchema: std.json.Value,
+            } = null,
+        }, world.allocator, response, .{}) catch return error.InvalidToolsListResponse;
         defer parsed.deinit();
-        
+
         if (parsed.value.result == null) {
             return error.NoToolsListResult;
         }
-        
+
         try world.setContext("tools_list_received", "true");
     } else {
         return error.NoMcpServer;
@@ -255,9 +241,9 @@ fn thenReceiveToolsList(world: *bdd.World, matches: [][]const u8) !void {
 
 fn thenToolListIncludes(world: *bdd.World, matches: [][]const u8) !void {
     _ = matches;
-    
+
     const response = world.last_response orelse return error.NoLastResponse;
-    
+
     // Check for presence of expected tools
     const expected_tools = &.{ "hover", "definition", "completions" };
     for (expected_tools) |tool| {
@@ -270,9 +256,9 @@ fn thenToolListIncludes(world: *bdd.World, matches: [][]const u8) !void {
 
 fn thenToolsHaveRequiredFields(world: *bdd.World, matches: [][]const u8) !void {
     _ = matches;
-    
+
     const response = world.last_response orelse return error.NoLastResponse;
-    
+
     // Check for required fields in tools
     const required_fields = &.{ "name", "description", "inputSchema" };
     for (required_fields) |field| {
@@ -290,9 +276,9 @@ fn givenLspServerConfigured(world: *bdd.World, matches: [][]const u8) !void {
 
 fn whenCallToolWithParameters(world: *bdd.World, matches: [][]const u8) !void {
     _ = matches;
-    
+
     if (world.mcp_server) |server| {
-        const tool_call_request = 
+        const tool_call_request =
             \\{
             \\  "jsonrpc": "2.0",
             \\  "id": 3,
@@ -307,7 +293,7 @@ fn whenCallToolWithParameters(world: *bdd.World, matches: [][]const u8) !void {
             \\  }
             \\}
         ;
-        
+
         try server.sendRequest(tool_call_request);
         try world.setContext("tool_call_request_sent", "true");
     } else {
@@ -317,7 +303,7 @@ fn whenCallToolWithParameters(world: *bdd.World, matches: [][]const u8) !void {
 
 fn thenReceiveSuccessfulToolResponse(world: *bdd.World, matches: [][]const u8) !void {
     _ = matches;
-    
+
     if (world.mcp_server) |server| {
         const response = server.readResponse(10000) catch |err| switch (err) {
             error.Timeout => {
@@ -327,19 +313,19 @@ fn thenReceiveSuccessfulToolResponse(world: *bdd.World, matches: [][]const u8) !
             else => return err,
         };
         defer world.allocator.free(response);
-        
+
         // Store response for further verification
         if (world.last_response) |old| {
             world.allocator.free(old);
         }
         world.last_response = try world.allocator.dupe(u8, response);
-        
+
         // Check that it's not an error response
         if (std.mem.indexOf(u8, response, "\"error\"") != null) {
             std.debug.print("Received error response: {s}\n", .{response});
             return error.ToolCallError;
         }
-        
+
         try world.setContext("tool_response_received", "true");
     } else {
         return error.NoMcpServer;

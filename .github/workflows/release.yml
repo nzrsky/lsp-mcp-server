@@ -12,7 +12,7 @@ on:
         type: string
 
 env:
-  ZIG_VERSION: '0.13.0'
+  ZIG_VERSION: '0.14.1'
 
 jobs:
   create-release:
@@ -41,12 +41,39 @@ jobs:
     - name: Generate changelog
       id: changelog
       run: |
-        echo "## Changes" > CHANGELOG.md
-        if [ -f CHANGELOG.md ]; then
-          cat CHANGELOG.md >> RELEASE_NOTES.md
+        echo "## Changes in ${{ steps.get_tag.outputs.tag_name }}" > RELEASE_NOTES.md
+        echo "" >> RELEASE_NOTES.md
+        
+        # Get commits since last tag
+        LAST_TAG=$(git tag --sort=-version:refname | head -2 | tail -1)
+        if [ -n "$LAST_TAG" ]; then
+          echo "### Changes since $LAST_TAG:" >> RELEASE_NOTES.md
+          git log --oneline --no-merges ${LAST_TAG}..HEAD | sed 's/^/- /' >> RELEASE_NOTES.md
         else
-          echo "See commit history for changes" >> RELEASE_NOTES.md
+          echo "### Initial release" >> RELEASE_NOTES.md
+          git log --oneline --no-merges | sed 's/^/- /' >> RELEASE_NOTES.md
         fi
+        
+        echo "" >> RELEASE_NOTES.md
+        echo "## Installation" >> RELEASE_NOTES.md
+        echo "" >> RELEASE_NOTES.md
+        echo "### Binary Downloads" >> RELEASE_NOTES.md
+        echo "Download the appropriate binary for your platform from the assets below." >> RELEASE_NOTES.md
+        echo "" >> RELEASE_NOTES.md
+        echo "### Package Managers" >> RELEASE_NOTES.md
+        echo "\`\`\`bash" >> RELEASE_NOTES.md
+        echo "# Homebrew" >> RELEASE_NOTES.md
+        echo "brew install nzrsky/tap/lsp-mcp-server" >> RELEASE_NOTES.md
+        echo "" >> RELEASE_NOTES.md
+        echo "# npm" >> RELEASE_NOTES.md
+        echo "npm install -g lsp-mcp-server" >> RELEASE_NOTES.md
+        echo "" >> RELEASE_NOTES.md
+        echo "# Python" >> RELEASE_NOTES.md
+        echo "pip install lsp-mcp-server" >> RELEASE_NOTES.md
+        echo "" >> RELEASE_NOTES.md
+        echo "# Docker" >> RELEASE_NOTES.md
+        echo "docker pull ghcr.io/nzrsky/lsp-mcp-server:${{ steps.get_tag.outputs.tag_name }}" >> RELEASE_NOTES.md
+        echo "\`\`\`" >> RELEASE_NOTES.md
         
     - name: Create Release
       id: create_release
@@ -104,7 +131,7 @@ jobs:
         
     - name: Build release binary
       run: |
-        zig build -Doptimize=ReleaseSafe -Dtarget=${{ matrix.target }}
+        BUILD_MODE=ReleaseSafe zig build -Dtarget=${{ matrix.target }}
         
     - name: Package binary (Unix)
       if: matrix.archive == 'tar.gz'

@@ -8,7 +8,7 @@
 [![Release](https://img.shields.io/github/v/release/nzrsky/lsp-mcp-server)](https://github.com/nzrsky/lsp-mcp-server/releases)
 [![Docker Pulls](https://img.shields.io/docker/pulls/nzrsky/lsp-mcp-server)](https://hub.docker.com/r/nzrsky/lsp-mcp-server)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Zig Version](https://img.shields.io/badge/Zig-0.13.0-orange)](https://ziglang.org/)
+[![Zig Version](https://img.shields.io/badge/Zig-0.14.1-orange)](https://ziglang.org/)
 
 A high-performance bridge server written in Zig that connects **Language Server Protocol (LSP)** servers to **Model Context Protocol (MCP)** clients. This enables AI coding assistants like Claude Code, Claude Desktop, Gemini CLI, and GitHub Copilot to interact with any LSP-compatible language server.
 
@@ -160,7 +160,7 @@ Download from [GitHub Releases](https://github.com/nzrsky/lsp-mcp-server/release
 ```bash
 git clone https://github.com/nzrsky/lsp-mcp-server.git
 cd lsp-mcp-server
-zig build -Doptimize=ReleaseSafe
+make build
 sudo make install
 ```
 
@@ -328,25 +328,35 @@ See [config/lsp-mcp-server.json.example](config/lsp-mcp-server.json.example) for
 
 ## 🧪 Testing
 
-The project includes a comprehensive BDD test suite that tests real protocol communication:
+The project includes a comprehensive test suite with mock LSP servers to eliminate timeouts:
 
 ```bash
-# Run unit tests
-zig build test
+# Quick development testing (30 seconds)
+make test-mock
 
-# Run BDD integration tests
-zig build test-bdd
+# Full development workflow  
+make quick
 
-# Run specific test scenarios
-./zig-out/bin/bdd-tests
+# Run unit tests only
+make test
+
+# Run BDD integration tests with mock servers
+make test-bdd-mock
+
+# Run all tests (comprehensive)
+make test-comprehensive
+
+# Simulate full CI pipeline locally
+make ci-local
 ```
 
-### BDD Test Features
+### Testing Features
 
-- ✅ **Real Protocol Testing**: Tests actual MCP and LSP communication
+- ✅ **Mock LSP Servers**: No external dependencies or timeouts
+- ✅ **Real Protocol Testing**: Full JSON-RPC LSP protocol compliance
+- ✅ **Fast Feedback**: Tests complete in 30 seconds vs 2+ minutes
 - ✅ **Multiple Scenarios**: Server initialization, tools listing, LSP connection, hover requests
-- ✅ **Generic Architecture**: Tests work with any LSP server
-- ✅ **True BDD**: Tests fail first (Red), then pass with implementation (Green)
+- ✅ **Professional CI**: Comprehensive testing pipeline
 
 ## 🐳 Docker Usage
 
@@ -356,7 +366,7 @@ zig build test-bdd
 # Clone and start development container
 git clone https://github.com/nzrsky/lsp-mcp-server.git
 cd lsp-mcp-server
-docker-compose up lsp-mcp-dev
+make docker-dev
 ```
 
 ### Production Deployment
@@ -408,15 +418,19 @@ git clone https://github.com/nzrsky/lsp-mcp-server.git
 cd lsp-mcp-server
 
 # Install dependencies (Nix)
-nix develop
+make dev
 
 # Or install Zig manually
-curl -L https://ziglang.org/download/0.13.0/zig-linux-x86_64-0.13.0.tar.xz | tar -xJ
+curl -L https://ziglang.org/download/0.14.1/zig-linux-x86_64-0.14.1.tar.xz | tar -xJ
 
-# Build and test
-zig build
-zig build test
-zig build test-bdd
+# Quick development cycle
+make quick
+
+# Run comprehensive tests
+make test-comprehensive
+
+# Simulate CI locally before pushing
+make ci-local
 ```
 
 ### Project Structure
@@ -477,6 +491,12 @@ LSP_MCP_LOG_LEVEL=debug lsp-mcp-server --server zls
 
 # Test connectivity
 lsp-mcp-server --server zls --test
+
+# Run local development tests
+make test-mock
+
+# Check formatting and build
+make quick
 ```
 
 ## 📄 License

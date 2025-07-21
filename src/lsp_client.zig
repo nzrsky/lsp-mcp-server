@@ -193,7 +193,7 @@ pub const LspClient = struct {
 
     pub fn deinit(self: *LspClient) void {
         self.stop();
-        
+
         // Clear all stored responses
         var iterator = self.responses.iterator();
         while (iterator.next()) |entry| {
@@ -206,7 +206,7 @@ pub const LspClient = struct {
         // Build command with arguments
         var argv = std.ArrayList([]const u8).init(self.allocator);
         defer argv.deinit();
-        
+
         try argv.append(self.config.command);
         for (self.config.args) |arg| {
             try argv.append(arg);
@@ -236,7 +236,7 @@ pub const LspClient = struct {
 
     pub fn stop(self: *LspClient) void {
         self.should_stop.store(true, .monotonic);
-        
+
         if (self.reader_thread) |thread| {
             thread.join();
             self.reader_thread = null;
@@ -251,22 +251,22 @@ pub const LspClient = struct {
 
     fn readerThreadFn(self: *LspClient) void {
         var buf: [65536]u8 = undefined;
-        
+
         while (!self.should_stop.load(.monotonic)) {
             // Read Content-Length header
             const header = self.stdout.?.readUntilDelimiterOrEof(&buf, '\n') catch break orelse break;
             if (!std.mem.startsWith(u8, header, "Content-Length: ")) continue;
-            
+
             const len_str = header["Content-Length: ".len..];
             const content_length = std.fmt.parseInt(usize, std.mem.trim(u8, len_str, "\r"), 10) catch continue;
-            
+
             // Skip empty line
             _ = self.stdout.?.readUntilDelimiterOrEof(&buf, '\n') catch break;
-            
+
             // Read JSON content
             if (content_length > buf.len) continue;
             self.stdout.?.readNoEof(buf[0..content_length]) catch break;
-            
+
             // Parse response and store it
             self.handleResponse(buf[0..content_length]) catch {};
         }
@@ -284,19 +284,19 @@ pub const LspClient = struct {
         if (parsed.value.id) |id| {
             var id_buf: [32]u8 = undefined;
             const id_str = try std.fmt.bufPrint(&id_buf, "{}", .{id});
-            
+
             const data_copy = try self.allocator.dupe(u8, data);
-            
+
             self.response_mutex.lock();
             defer self.response_mutex.unlock();
-            
+
             try self.responses.put(try self.allocator.dupe(u8, id_str), data_copy);
         }
     }
 
     fn sendRequest(self: *LspClient, method: []const u8, params: anytype) !u32 {
         const id = self.next_id.fetchAdd(1, .monotonic);
-        
+
         const request = .{
             .jsonrpc = "2.0",
             .id = id,
@@ -306,12 +306,12 @@ pub const LspClient = struct {
 
         var string = std.ArrayList(u8).init(self.allocator);
         defer string.deinit();
-        
+
         try json.stringify(request, .{}, string.writer());
-        
+
         try self.stdin.?.print("Content-Length: {d}\r\n\r\n", .{string.items.len});
         try self.stdin.?.writeAll(string.items);
-        
+
         return id;
     }
 
@@ -324,9 +324,9 @@ pub const LspClient = struct {
 
         var string = std.ArrayList(u8).init(self.allocator);
         defer string.deinit();
-        
+
         try json.stringify(notification, .{}, string.writer());
-        
+
         try self.stdin.?.print("Content-Length: {d}\r\n\r\n", .{string.items.len});
         try self.stdin.?.writeAll(string.items);
     }
@@ -334,7 +334,7 @@ pub const LspClient = struct {
     fn waitForResponse(self: *LspClient, id: u32, timeout_ms: u64) ![]u8 {
         var id_buf: [32]u8 = undefined;
         const id_str = try std.fmt.bufPrint(&id_buf, "{}", .{id});
-        
+
         const start_time = std.time.milliTimestamp();
         while (std.time.milliTimestamp() - start_time < timeout_ms) {
             self.response_mutex.lock();
@@ -344,17 +344,17 @@ pub const LspClient = struct {
                 return response;
             }
             self.response_mutex.unlock();
-            
+
             std.time.sleep(10 * std.time.ns_per_ms);
         }
-        
+
         return error.Timeout;
     }
 
     fn initialize(self: *LspClient) !void {
         std.debug.print("LSP Client: Initializing LSP server...\n", .{});
         const init_options = if (self.config.initialization_options) |opts| opts else json.Value{ .null = {} };
-        
+
         const params = .{
             .processId = null,
             .rootUri = self.config.root_uri,

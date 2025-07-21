@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 env:
-  ZIG_VERSION: '0.13.0'
+  ZIG_VERSION: '0.14.1'
 
 jobs:
   nightly-build:
@@ -41,7 +41,7 @@ jobs:
         
     - name: Build nightly
       run: |
-        zig build -Doptimize=ReleaseFast -Dtarget=${{ matrix.target }}
+        BUILD_MODE=ReleaseFast zig build -Dtarget=${{ matrix.target }}
         
     - name: Package binary
       run: |
@@ -129,7 +129,7 @@ jobs:
         echo "export PATH=$PATH:$(go env GOPATH)/bin" >> $GITHUB_ENV
         
     - name: Build optimized
-      run: zig build -Doptimize=ReleaseFast
+      run: BUILD_MODE=ReleaseFast make build
       
     - name: Run extended tests with all language servers
       run: |
