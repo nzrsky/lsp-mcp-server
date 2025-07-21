@@ -17,6 +17,7 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("src/mcp.zig"),
     });
     mcp_module.addImport("lsp_client", lsp_client_module);
+    mcp_module.addImport("config", config_module);
 
     const exe = b.addExecutable(.{
         .name = "lsp-mcp-server",

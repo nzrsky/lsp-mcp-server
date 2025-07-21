@@ -7,6 +7,7 @@ pub const LspServerConfig = struct {
     args: []const []const u8,
     file_extensions: []const []const u8,
     language_id: []const u8,
+    install_hint: []const u8,
     root_uri: ?[]const u8 = null,
     working_directory: ?[]const u8 = null,
     initialization_options: ?json.Value = null,
@@ -65,6 +66,7 @@ pub const LANGUAGE_SERVERS = struct {
         .args = &.{},
         .file_extensions = &.{ ".zig", ".zir" },
         .language_id = "zig",
+        .install_hint = "Install via: https://github.com/zigtools/zls/releases or `brew install zls`",
         .client_capabilities = .{
             .textDocument = .{
                 .hover = .{
@@ -104,8 +106,9 @@ pub const LANGUAGE_SERVERS = struct {
         .name = "rust-analyzer",
         .command = "rust-analyzer",
         .args = &.{},
-        .file_extensions = &.{ ".rs", ".toml" },
+        .file_extensions = &.{ ".rs" },
         .language_id = "rust",
+        .install_hint = "Install via: `rustup component add rust-analyzer` or `brew install rust-analyzer`",
         .initialization_options = null,
         .client_capabilities = .{
             .textDocument = .{
@@ -152,8 +155,9 @@ pub const LANGUAGE_SERVERS = struct {
         .name = "gopls",
         .command = "gopls",
         .args = &.{},
-        .file_extensions = &.{ ".go", ".mod", ".sum", ".work" },
+        .file_extensions = &.{ ".go" },
         .language_id = "go",
+        .install_hint = "Install via: `go install golang.org/x/tools/gopls@latest` or `brew install gopls`",
         .initialization_options = null,
         .client_capabilities = .{
             .textDocument = .{
@@ -200,8 +204,9 @@ pub const LANGUAGE_SERVERS = struct {
         .name = "typescript-language-server",
         .command = "typescript-language-server",
         .args = &.{"--stdio"},
-        .file_extensions = &.{ ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs" },
+        .file_extensions = &.{ ".ts", ".tsx", ".js", ".jsx" },
         .language_id = "typescript",
+        .install_hint = "Install via: `npm install -g typescript-language-server typescript` or `brew install typescript-language-server`",
         .initialization_options = null,
         .client_capabilities = .{
             .textDocument = .{
@@ -248,8 +253,9 @@ pub const LANGUAGE_SERVERS = struct {
         .name = "pylsp",
         .command = "pylsp",
         .args = &.{},
-        .file_extensions = &.{ ".py", ".pyi", ".pyx" },
+        .file_extensions = &.{ ".py", ".pyi" },
         .language_id = "python",
+        .install_hint = "Install via: `pip install python-lsp-server` or `brew install python-lsp-server`",
         .initialization_options = null,
         .client_capabilities = .{
             .textDocument = .{
@@ -291,6 +297,54 @@ pub const LANGUAGE_SERVERS = struct {
             },
         },
     };
+
+    pub const CLANGD = LspServerConfig{
+        .name = "clangd",
+        .command = "clangd",
+        .args = &.{},
+        .file_extensions = &.{ ".c", ".cpp", ".cc", ".cxx", ".h", ".hpp", ".hxx" },
+        .language_id = "cpp",
+        .install_hint = "Install via: `brew install llvm` or `apt install clangd` or download from https://clangd.llvm.org/",
+        .client_capabilities = .{
+            .textDocument = .{
+                .hover = .{
+                    .contentFormat = &.{ "markdown", "plaintext" },
+                },
+                .completion = .{
+                    .completionItem = .{
+                        .documentationFormat = &.{ "markdown", "plaintext" },
+                    },
+                },
+                .definition = .{
+                    .linkSupport = true,
+                },
+            },
+        },
+    };
+
+    pub const JDTLS = LspServerConfig{
+        .name = "jdtls",
+        .command = "jdtls",
+        .args = &.{},
+        .file_extensions = &.{ ".java" },
+        .language_id = "java",
+        .install_hint = "Install via: `brew install jdtls` or download from https://download.eclipse.org/jdtls/",
+        .client_capabilities = .{
+            .textDocument = .{
+                .hover = .{
+                    .contentFormat = &.{ "markdown", "plaintext" },
+                },
+                .completion = .{
+                    .completionItem = .{
+                        .documentationFormat = &.{ "markdown", "plaintext" },
+                    },
+                },
+                .definition = .{
+                    .linkSupport = true,
+                },
+            },
+        },
+    };
 };
 
 pub const ServerConfigs = struct {
@@ -311,6 +365,8 @@ pub const ServerConfigs = struct {
         try self.configs.put("gopls", LANGUAGE_SERVERS.GOPLS);
         try self.configs.put("typescript-language-server", LANGUAGE_SERVERS.TYPESCRIPT_LANGUAGE_SERVER);
         try self.configs.put("pylsp", LANGUAGE_SERVERS.PYTHON_LSP_SERVER);
+        try self.configs.put("clangd", LANGUAGE_SERVERS.CLANGD);
+        try self.configs.put("jdtls", LANGUAGE_SERVERS.JDTLS);
     }
 
     pub fn get(self: *ServerConfigs, name: []const u8) ?LspServerConfig {
