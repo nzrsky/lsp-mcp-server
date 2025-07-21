@@ -1,0 +1,187 @@
+name: Cleanup
+
+on:
+  schedule:
+    # Run weekly on Sundays at 2 AM UTC
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+
+jobs:
+  cleanup-artifacts:
+    name: Cleanup Old Artifacts
+    runs-on: ubuntu-latest
+    steps:
+    - name: Cleanup old artifacts
+      uses: actions/github-script@v7
+      with:
+        script: |
+          // Get all artifacts
+          const artifacts = await github.rest.actions.listArtifactsForRepo({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            per_page: 100
+          });
+          
+          // Keep artifacts newer than 30 days
+          const thirtyDaysAgo = new Date();
+          thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+          
+          let deletedCount = 0;
+          
+          for (const artifact of artifacts.data.artifacts) {
+            const createdAt = new Date(artifact.created_at);
+            
+            if (createdAt < thirtyDaysAgo) {
+              console.log(`Deleting artifact: ${artifact.name} (created: ${artifact.created_at})`);
+              
+              try {
+                await github.rest.actions.deleteArtifact({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  artifact_id: artifact.id
+                });
+                deletedCount++;
+              } catch (error) {
+                console.error(`Failed to delete artifact ${artifact.name}: ${error.message}`);
+              }
+            }
+          }
+          
+          console.log(`Deleted ${deletedCount} old artifacts`);
+
+  cleanup-caches:
+    name: Cleanup Old Caches
+    runs-on: ubuntu-latest
+    steps:
+    - name: Cleanup old caches
+      uses: actions/github-script@v7
+      with:
+        script: |
+          // Get all caches
+          const caches = await github.rest.actions.getActionsCacheList({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            per_page: 100
+          });
+          
+          // Keep caches newer than 7 days
+          const sevenDaysAgo = new Date();
+          sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+          
+          let deletedCount = 0;
+          
+          for (const cache of caches.data.actions_caches) {
+            const createdAt = new Date(cache.created_at);
+            
+            if (createdAt < sevenDaysAgo) {
+              console.log(`Deleting cache: ${cache.key} (created: ${cache.created_at})`);
+              
+              try {
+                await github.rest.actions.deleteActionsCacheById({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  cache_id: cache.id
+                });
+                deletedCount++;
+              } catch (error) {
+                console.error(`Failed to delete cache ${cache.key}: ${error.message}`);
+              }
+            }
+          }
+          
+          console.log(`Deleted ${deletedCount} old caches`);
+
+  cleanup-packages:
+    name: Cleanup Old Package Versions
+    runs-on: ubuntu-latest
+    if: github.repository_owner == 'username'  # Only run for main repository
+    steps:
+    - name: Cleanup old Docker images
+      uses: actions/github-script@v7
+      with:
+        script: |
+          // Get all package versions
+          const packages = await github.rest.packages.getAllPackageVersionsForPackageOwnedByOrg({
+            package_type: 'container',
+            package_name: 'lsp-mcp-server',
+            org: context.repo.owner,
+            per_page: 100
+          });
+          
+          // Keep the 10 most recent versions and any tagged versions
+          const sortedPackages = packages.data.sort((a, b) => 
+            new Date(b.created_at) - new Date(a.created_at)
+          );
+          
+          let deletedCount = 0;
+          
+          for (let i = 10; i < sortedPackages.length; i++) {
+            const pkg = sortedPackages[i];
+            
+            // Don't delete tagged versions (releases)
+            if (pkg.metadata && pkg.metadata.container && pkg.metadata.container.tags.length > 0) {
+              const hasReleaseTag = pkg.metadata.container.tags.some(tag => 
+                tag.match(/^v?\d+\.\d+\.\d+$/) || tag === 'latest'
+              );
+              if (hasReleaseTag) {
+                console.log(`Keeping tagged version: ${pkg.metadata.container.tags.join(', ')}`);
+                continue;
+              }
+            }
+            
+            console.log(`Deleting package version: ${pkg.id} (created: ${pkg.created_at})`);
+            
+            try {
+              await github.rest.packages.deletePackageVersionForOrg({
+                package_type: 'container',
+                package_name: 'lsp-mcp-server',
+                org: context.repo.owner,
+                package_version_id: pkg.id
+              });
+              deletedCount++;
+            } catch (error) {
+              console.error(`Failed to delete package version ${pkg.id}: ${error.message}`);
+            }
+          }
+          
+          console.log(`Deleted ${deletedCount} old package versions`);
+
+  cleanup-branches:
+    name: Cleanup Merged Branches
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: Cleanup merged branches
+      run: |
+        echo "Fetching all branches..."
+        git fetch --all --prune
+        
+        echo "Finding merged branches..."
+        # Get all remote branches that have been merged into main
+        merged_branches=$(git branch -r --merged origin/main | grep -v -E '(origin/main|origin/develop|origin/HEAD)' | sed 's/origin\///')
+        
+        if [ -z "$merged_branches" ]; then
+          echo "No merged branches to delete"
+          exit 0
+        fi
+        
+        echo "Merged branches found:"
+        echo "$merged_branches"
+        
+        # Only delete branches older than 30 days
+        for branch in $merged_branches; do
+          last_commit_date=$(git log -1 --format=%ct origin/$branch 2>/dev/null || echo "0")
+          current_date=$(date +%s)
+          days_old=$(( (current_date - last_commit_date) / 86400 ))
+          
+          if [ $days_old -gt 30 ]; then
+            echo "Deleting branch $branch (${days_old} days old)"
+            git push origin --delete $branch || echo "Failed to delete $branch"
+          else
+            echo "Keeping branch $branch (${days_old} days old)"
+          fi
+        done

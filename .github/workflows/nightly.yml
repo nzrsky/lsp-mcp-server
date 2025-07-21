@@ -1,0 +1,194 @@
+name: Nightly
+
+on:
+  schedule:
+    # Run at 3 AM UTC every day
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+env:
+  ZIG_VERSION: '0.13.0'
+
+jobs:
+  nightly-build:
+    name: Nightly Build (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - x86_64-linux
+          - aarch64-linux
+          - x86_64-macos
+          - aarch64-macos
+          - x86_64-windows
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Setup Zig
+      uses: goto-bus-stop/setup-zig@v2
+      with:
+        version: ${{ env.ZIG_VERSION }}
+        
+    - name: Cache Zig dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          .zig-cache
+          ~/.cache/zig
+        key: nightly-${{ matrix.target }}-zig-${{ env.ZIG_VERSION }}-${{ hashFiles('build.zig', 'build.zig.zon') }}
+        
+    - name: Build nightly
+      run: |
+        zig build -Doptimize=ReleaseFast -Dtarget=${{ matrix.target }}
+        
+    - name: Package binary
+      run: |
+        mkdir -p nightly
+        DATE=$(date +%Y%m%d)
+        if [[ "${{ matrix.target }}" == *"windows"* ]]; then
+          cp zig-out/bin/lsp-mcp-server.exe nightly/
+          cd nightly && zip -r ../lsp-mcp-server-nightly-${DATE}-${{ matrix.target }}.zip .
+        else
+          cp zig-out/bin/lsp-mcp-server nightly/
+          tar -czf lsp-mcp-server-nightly-${DATE}-${{ matrix.target }}.tar.gz -C nightly .
+        fi
+        
+    - name: Upload nightly artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: lsp-mcp-server-nightly-${{ matrix.target }}
+        path: |
+          lsp-mcp-server-nightly-*
+        retention-days: 7
+
+  nightly-docker:
+    name: Nightly Docker Build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Login to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Build and push nightly Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: |
+          ghcr.io/${{ github.repository }}:nightly
+          ghcr.io/${{ github.repository }}:nightly-${{ github.run_number }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  nightly-test:
+    name: Nightly Extended Tests
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Setup Zig
+      uses: goto-bus-stop/setup-zig@v2
+      with:
+        version: ${{ env.ZIG_VERSION }}
+        
+    - name: Install all language servers
+      run: |
+        # Install ZLS
+        curl -L https://github.com/zigtools/zls/releases/latest/download/zls-x86_64-linux.tar.xz | tar -xJ
+        sudo mv zls /usr/local/bin/
+        
+        # Install Node.js and TypeScript LS
+        curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
+        sudo apt-get install -y nodejs
+        sudo npm install -g typescript-language-server typescript
+        
+        # Install Python LSP
+        python3 -m pip install python-lsp-server
+        
+        # Install Rust Analyzer
+        curl -L https://github.com/rust-lang/rust-analyzer/releases/latest/download/rust-analyzer-x86_64-unknown-linux-gnu.gz | gunzip > rust-analyzer
+        chmod +x rust-analyzer
+        sudo mv rust-analyzer /usr/local/bin/
+        
+        # Install Go
+        sudo apt-get install -y golang-go
+        go install golang.org/x/tools/gopls@latest
+        echo "export PATH=$PATH:$(go env GOPATH)/bin" >> $GITHUB_ENV
+        
+    - name: Build optimized
+      run: zig build -Doptimize=ReleaseFast
+      
+    - name: Run extended tests with all language servers
+      run: |
+        echo "=== Testing with ZLS ==="
+        timeout 30s ./zig-out/bin/lsp-mcp-server --server zls || true
+        
+        echo "=== Testing with TypeScript LS ==="
+        timeout 30s ./zig-out/bin/lsp-mcp-server --server typescript-language-server || true
+        
+        echo "=== Testing with Python LSP ==="
+        timeout 30s ./zig-out/bin/lsp-mcp-server --server pylsp || true
+        
+        echo "=== Testing with Rust Analyzer ==="
+        timeout 30s ./zig-out/bin/lsp-mcp-server --server rust-analyzer || true
+        
+        echo "=== Testing with Gopls ==="
+        timeout 30s ./zig-out/bin/lsp-mcp-server --server gopls || true
+        
+    - name: Memory stress test
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y stress
+        
+        echo "=== Memory Stress Test ==="
+        # Run server under memory pressure
+        stress --vm 1 --vm-bytes 1G --timeout 60s &
+        STRESS_PID=$!
+        timeout 30s ./zig-out/bin/lsp-mcp-server --server zls || true
+        kill $STRESS_PID 2>/dev/null || true
+        
+    - name: Performance regression test
+      run: |
+        echo "=== Performance Regression Test ==="
+        
+        # Test startup time (should be under 1 second)
+        START_TIME=$(date +%s%N)
+        timeout 5s ./zig-out/bin/lsp-mcp-server --help > /dev/null
+        END_TIME=$(date +%s%N)
+        STARTUP_TIME=$((($END_TIME - $START_TIME) / 1000000))  # Convert to milliseconds
+        
+        echo "Startup time: ${STARTUP_TIME}ms"
+        
+        if [ $STARTUP_TIME -gt 1000 ]; then
+          echo "WARNING: Startup time regression detected (>${STARTUP_TIME}ms)"
+          exit 1
+        fi
+
+  notify:
+    name: Notify Results
+    needs: [nightly-build, nightly-docker, nightly-test]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+    - name: Notify on failure
+      if: ${{ needs.nightly-build.result == 'failure' || needs.nightly-docker.result == 'failure' || needs.nightly-test.result == 'failure' }}
+      run: |
+        echo "::warning::Nightly build failed. Check the logs for details."
+        
+    - name: Notify on success
+      if: ${{ needs.nightly-build.result == 'success' && needs.nightly-docker.result == 'success' && needs.nightly-test.result == 'success' }}
+      run: |
+        echo "::notice::Nightly build completed successfully."

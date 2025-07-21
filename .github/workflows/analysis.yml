@@ -1,0 +1,270 @@
+name: Code Analysis
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # Run weekly on Tuesdays at 1 AM UTC
+    - cron: '0 1 * * 2'
+
+env:
+  ZIG_VERSION: '0.13.0'
+
+jobs:
+  codeql:
+    name: CodeQL Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v3
+      with:
+        languages: 'cpp'  # CodeQL doesn't support Zig yet, but can analyze it as C++
+        
+    - name: Setup Zig
+      uses: goto-bus-stop/setup-zig@v2
+      with:
+        version: ${{ env.ZIG_VERSION }}
+        
+    - name: Build for analysis
+      run: |
+        zig build -Doptimize=Debug
+        
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Dependency Review
+      uses: actions/dependency-review-action@v4
+      with:
+        fail-on-severity: moderate
+
+  semgrep:
+    name: Semgrep Security Scan
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Run Semgrep
+      uses: semgrep/semgrep-action@v1
+      with:
+        config: >-
+          p/security-audit
+          p/secrets
+          p/ci
+        generateSarif: "1"
+        
+    - name: Upload SARIF file
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: semgrep.sarif
+      if: always()
+
+  complexity-analysis:
+    name: Code Complexity Analysis
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        
+    - name: Install analysis tools
+      run: |
+        pip install radon lizard
+        
+    - name: Analyze complexity
+      run: |
+        echo "=== Radon Complexity Analysis ==="
+        radon cc src/ --show-complexity -s || true
+        
+        echo "=== Lizard Complexity Analysis ==="
+        lizard src/ || true
+        
+        echo "=== File Statistics ==="
+        find src/ -name "*.zig" -exec wc -l {} + | sort -n
+        
+        echo "=== Function Count ==="
+        grep -r "fn " src/ --include="*.zig" | wc -l
+
+  documentation-check:
+    name: Documentation Analysis
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Check documentation coverage
+      run: |
+        echo "=== Documentation Coverage Analysis ==="
+        
+        # Count public functions
+        pub_functions=$(grep -r "pub fn " src/ --include="*.zig" | wc -l)
+        
+        # Count documented functions (those with doc comments)
+        documented_functions=$(grep -B1 -r "pub fn " src/ --include="*.zig" | grep -c "///" || echo "0")
+        
+        echo "Public functions: $pub_functions"
+        echo "Documented functions: $documented_functions"
+        
+        if [ $pub_functions -gt 0 ]; then
+          coverage=$((documented_functions * 100 / pub_functions))
+          echo "Documentation coverage: ${coverage}%"
+          
+          if [ $coverage -lt 70 ]; then
+            echo "::warning::Documentation coverage is below 70%"
+          fi
+        fi
+        
+    - name: Check README completeness
+      run: |
+        echo "=== README Completeness Check ==="
+        
+        required_sections=(
+          "Installation"
+          "Usage"
+          "Configuration"
+          "Contributing"
+          "License"
+        )
+        
+        missing_sections=()
+        
+        for section in "${required_sections[@]}"; do
+          if ! grep -qi "$section" README.md; then
+            missing_sections+=("$section")
+          fi
+        done
+        
+        if [ ${#missing_sections[@]} -gt 0 ]; then
+          echo "::warning::Missing README sections: ${missing_sections[*]}"
+        else
+          echo "✓ All required README sections present"
+        fi
+        
+    - name: Check for broken links
+      run: |
+        echo "=== Broken Links Check ==="
+        
+        # Extract URLs from markdown files
+        urls=$(grep -hoE 'https?://[^)]*' *.md config/*.example 2>/dev/null || true)
+        
+        if [ -n "$urls" ]; then
+          echo "Checking URLs..."
+          echo "$urls" | while read -r url; do
+            if [ -n "$url" ]; then
+              if curl -f -s -I "$url" >/dev/null 2>&1; then
+                echo "✓ $url"
+              else
+                echo "✗ $url"
+                echo "::warning::Broken link detected: $url"
+              fi
+            fi
+          done
+        fi
+
+  performance-analysis:
+    name: Performance Analysis
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Setup Zig
+      uses: goto-bus-stop/setup-zig@v2
+      with:
+        version: ${{ env.ZIG_VERSION }}
+        
+    - name: Build optimized
+      run: |
+        zig build -Doptimize=ReleaseFast
+        
+    - name: Install analysis tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y time valgrind hyperfine
+        
+    - name: Binary size analysis
+      run: |
+        echo "=== Binary Size Analysis ==="
+        ls -lh zig-out/bin/lsp-mcp-server
+        
+        # Compare with debug build
+        zig build -Doptimize=Debug
+        ls -lh zig-out/bin/lsp-mcp-server
+        mv zig-out/bin/lsp-mcp-server zig-out/bin/lsp-mcp-server-debug
+        
+        # Rebuild optimized
+        zig build -Doptimize=ReleaseFast
+        
+        echo "Size comparison:"
+        echo "Debug: $(stat -f%z zig-out/bin/lsp-mcp-server-debug 2>/dev/null || stat -c%s zig-out/bin/lsp-mcp-server-debug) bytes"
+        echo "Release: $(stat -f%z zig-out/bin/lsp-mcp-server 2>/dev/null || stat -c%s zig-out/bin/lsp-mcp-server) bytes"
+        
+    - name: Startup time benchmark
+      run: |
+        echo "=== Startup Time Benchmark ==="
+        
+        echo "Help command timing:"
+        hyperfine --warmup 3 './zig-out/bin/lsp-mcp-server --help'
+        
+    - name: Memory usage analysis
+      run: |
+        echo "=== Memory Usage Analysis ==="
+        
+        # Install ZLS for testing
+        curl -L https://github.com/zigtools/zls/releases/latest/download/zls-x86_64-linux.tar.xz | tar -xJ
+        sudo mv zls /usr/local/bin/
+        
+        echo "Memory usage during startup:"
+        timeout 10s valgrind --tool=massif --time-unit=ms --massif-out-file=massif.out \
+          ./zig-out/bin/lsp-mcp-server --server zls || true
+          
+        if [ -f massif.out ]; then
+          ms_print massif.out | head -20
+        fi
+
+  build-matrix:
+    name: Build Matrix Analysis
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        optimize: [Debug, ReleaseSafe, ReleaseFast, ReleaseSmall]
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Setup Zig
+      uses: goto-bus-stop/setup-zig@v2
+      with:
+        version: ${{ env.ZIG_VERSION }}
+        
+    - name: Build with ${{ matrix.optimize }}
+      run: |
+        echo "Building with -Doptimize=${{ matrix.optimize }}"
+        time zig build -Doptimize=${{ matrix.optimize }}
+        
+        echo "Binary info:"
+        ls -lh zig-out/bin/lsp-mcp-server*
+        
+        echo "Testing basic functionality:"
+        ./zig-out/bin/lsp-mcp-server --help

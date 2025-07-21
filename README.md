@@ -1,10 +1,190 @@
 # LSP-MCP Server
 
+<a href="https://repology.org/project/lsp-mcp-server/versions">
+    <img src="https://repology.org/badge/vertical-allrepos/lsp-mcp-server.svg" alt="Packaging status" align="right">
+</a>
+
 [![Build Status](https://github.com/username/lsp-mcp-server/workflows/CI/badge.svg)](https://github.com/username/lsp-mcp-server/actions)
+[![Release](https://img.shields.io/github/v/release/username/lsp-mcp-server)](https://github.com/username/lsp-mcp-server/releases)
 [![Docker Pulls](https://img.shields.io/docker/pulls/username/lsp-mcp-server)](https://hub.docker.com/r/username/lsp-mcp-server)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Zig Version](https://img.shields.io/badge/Zig-0.13.0-orange)](https://ziglang.org/)
 
 A high-performance bridge server written in Zig that connects **Language Server Protocol (LSP)** servers to **Model Context Protocol (MCP)** clients. This enables AI coding assistants like Claude Code, Claude Desktop, Gemini CLI, and GitHub Copilot to interact with any LSP-compatible language server.
+
+## 📦 Installation
+
+### Package Managers
+
+#### Homebrew (macOS & Linux)
+```bash
+brew install username/tap/lsp-mcp-server
+```
+
+#### Nix/NixOS
+```bash
+# Nix profile
+nix profile install github:username/lsp-mcp-server
+
+# NixOS configuration.nix
+services.lsp-mcp-server.enable = true;
+```
+
+#### Debian/Ubuntu
+```bash
+# Add repository
+curl -fsSL https://github.com/username/lsp-mcp-server/releases/latest/download/pubkey.gpg | sudo apt-key add -
+echo "deb https://github.com/username/lsp-mcp-server/releases/latest/download/ stable main" | sudo tee /etc/apt/sources.list.d/lsp-mcp-server.list
+
+# Install
+sudo apt update && sudo apt install lsp-mcp-server
+```
+
+#### RHEL/Fedora/CentOS
+```bash
+# Fedora
+sudo dnf install lsp-mcp-server
+
+# RHEL/CentOS (with EPEL)
+sudo dnf install epel-release
+sudo dnf install lsp-mcp-server
+```
+
+#### Arch Linux (AUR)
+```bash
+# Using yay
+yay -S lsp-mcp-server
+
+# Using paru
+paru -S lsp-mcp-server
+```
+
+#### openSUSE
+```bash
+sudo zypper install lsp-mcp-server
+```
+
+#### Alpine Linux
+```bash
+sudo apk add lsp-mcp-server
+```
+
+#### FreeBSD
+```bash
+pkg install lsp-mcp-server
+```
+
+#### NetBSD
+```bash
+pkg_add lsp-mcp-server
+```
+
+#### Gentoo
+```bash
+emerge lsp-mcp-server
+```
+
+#### Void Linux
+```bash
+xbps-install lsp-mcp-server
+```
+
+### Universal Package Managers
+
+#### Snap (Linux)
+```bash
+sudo snap install lsp-mcp-server
+```
+
+#### Flatpak (Linux)
+```bash
+flatpak install flathub org.lsp_mcp_server.LspMcpServer
+```
+
+#### AppImage (Linux)
+```bash
+# Download and run
+wget https://github.com/username/lsp-mcp-server/releases/latest/download/lsp-mcp-server-x86_64.AppImage
+chmod +x lsp-mcp-server-x86_64.AppImage
+./lsp-mcp-server-x86_64.AppImage
+```
+
+#### Smithery (Cross-platform)
+```bash
+smithery install lsp-mcp-server
+```
+
+### Container Images
+
+#### Docker
+```bash
+# Official image
+docker pull ghcr.io/username/lsp-mcp-server:latest
+
+# Docker Hub
+docker pull username/lsp-mcp-server:latest
+```
+
+#### Podman
+```bash
+podman pull ghcr.io/username/lsp-mcp-server:latest
+```
+
+### Language-Specific Package Managers
+
+#### Cargo (Rust ecosystem)
+```bash
+cargo install lsp-mcp-server
+```
+
+#### npm (Node.js ecosystem)
+```bash
+npm install -g lsp-mcp-server
+```
+
+#### Go
+```bash
+go install github.com/username/lsp-mcp-server@latest
+```
+
+### Manual Installation
+
+#### Pre-built Binaries
+Download from [GitHub Releases](https://github.com/username/lsp-mcp-server/releases):
+- **Linux**: `lsp-mcp-server-linux-x86_64.tar.gz`
+- **macOS**: `lsp-mcp-server-macos-x86_64.tar.gz` / `lsp-mcp-server-macos-arm64.tar.gz`
+- **Windows**: `lsp-mcp-server-windows-x86_64.zip`
+- **FreeBSD**: `lsp-mcp-server-freebsd-x86_64.tar.gz`
+
+#### Build from Source
+```bash
+git clone https://github.com/username/lsp-mcp-server.git
+cd lsp-mcp-server
+zig build -Doptimize=ReleaseSafe
+sudo make install
+```
+
+### Cloud & CI/CD
+
+#### GitHub Actions
+```yaml
+- name: Setup LSP-MCP Server
+  uses: username/setup-lsp-mcp-server@v1
+  with:
+    version: 'latest'
+```
+
+#### GitLab CI
+```yaml
+image: ghcr.io/username/lsp-mcp-server:latest
+```
+
+#### Kubernetes
+```bash
+kubectl apply -f https://github.com/username/lsp-mcp-server/releases/latest/download/kubernetes.yaml
+```
+
+---
 
 ## ✨ Features
 
@@ -19,37 +199,18 @@ A high-performance bridge server written in Zig that connects **Language Server 
 
 ## 🚀 Quick Start
 
-### Docker (Fastest)
-
 ```bash
+# Run with Docker (fastest)
 docker run --rm -v "$(pwd):/workspace" ghcr.io/username/lsp-mcp-server:latest --server zls
-```
 
-### Package Managers
+# Install with package manager
+brew install username/tap/lsp-mcp-server  # macOS/Linux
+nix profile install github:username/lsp-mcp-server  # Nix
+sudo apt install lsp-mcp-server  # Ubuntu/Debian
+sudo dnf install lsp-mcp-server  # Fedora/RHEL
 
-```bash
-# Homebrew (macOS/Linux)
-brew install username/tap/lsp-mcp-server
-
-# Nix
-nix profile install github:username/lsp-mcp-server
-
-# APT (Ubuntu/Debian)
-sudo apt install lsp-mcp-server
-
-# YUM/DNF (RHEL/Fedora)
-sudo dnf install lsp-mcp-server
-```
-
-### Pre-built Binaries
-
-Download from [releases](https://github.com/username/lsp-mcp-server/releases) or build from source:
-
-```bash
-git clone https://github.com/username/lsp-mcp-server.git
-cd lsp-mcp-server
-zig build -Doptimize=ReleaseSafe
-./zig-out/bin/lsp-mcp-server --help
+# Use immediately
+lsp-mcp-server --server zls
 ```
 
 ## 🔧 Usage

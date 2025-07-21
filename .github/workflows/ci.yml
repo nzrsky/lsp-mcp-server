@@ -1,0 +1,276 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # Run weekly to catch dependency issues
+    - cron: '0 0 * * 0'
+
+env:
+  ZIG_VERSION: '0.13.0'
+
+jobs:
+  test:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Setup Zig
+      uses: goto-bus-stop/setup-zig@v2
+      with:
+        version: ${{ env.ZIG_VERSION }}
+        
+    - name: Cache Zig dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          .zig-cache
+          ~/.cache/zig
+        key: ${{ runner.os }}-zig-${{ env.ZIG_VERSION }}-${{ hashFiles('build.zig', 'build.zig.zon') }}
+        restore-keys: |
+          ${{ runner.os }}-zig-${{ env.ZIG_VERSION }}-
+          
+    - name: Install language servers (Ubuntu)
+      if: runner.os == 'Linux'
+      run: |
+        # Install common language servers for testing
+        curl -L https://github.com/zigtools/zls/releases/latest/download/zls-x86_64-linux.tar.xz | tar -xJ
+        sudo mv zls /usr/local/bin/
+        
+        # Install Node.js for TypeScript LS
+        curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
+        sudo apt-get install -y nodejs
+        sudo npm install -g typescript-language-server typescript
+        
+        # Install Python LSP
+        python3 -m pip install python-lsp-server
+        
+    - name: Install language servers (macOS)
+      if: runner.os == 'macOS'
+      run: |
+        # Install via Homebrew
+        brew install zls
+        brew install node
+        npm install -g typescript-language-server typescript
+        pip3 install python-lsp-server
+        
+    - name: Install language servers (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        # Install Node.js and TypeScript LS
+        choco install nodejs
+        npm install -g typescript-language-server typescript
+        
+        # Install Python LSP
+        pip install python-lsp-server
+        
+    - name: Build (Debug)
+      run: zig build -Doptimize=Debug
+      
+    - name: Build (ReleaseSafe)
+      run: zig build -Doptimize=ReleaseSafe
+      
+    - name: Run unit tests
+      run: zig build test
+      
+    - name: Run BDD integration tests (Unix)
+      if: runner.os != 'Windows'
+      run: zig build test-bdd
+      
+    - name: Test binary functionality
+      shell: bash
+      run: |
+        if [ "${{ runner.os }}" = "Windows" ]; then
+          ./zig-out/bin/lsp-mcp-server.exe --help
+        else
+          ./zig-out/bin/lsp-mcp-server --help
+        fi
+        
+    - name: Upload test artifacts
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-artifacts-${{ matrix.os }}
+        path: |
+          zig-out/
+          .zig-cache/
+          test-*.log
+
+  lint:
+    name: Lint and Format Check
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Setup Zig
+      uses: goto-bus-stop/setup-zig@v2
+      with:
+        version: ${{ env.ZIG_VERSION }}
+        
+    - name: Check formatting
+      run: |
+        zig fmt --check src/
+        zig fmt --check tests/
+        
+    - name: Lint (zig build check)
+      run: zig build --summary all
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+        
+    - name: Upload Trivy scan results
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  build-cross-platform:
+    name: Cross-platform Build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - x86_64-linux
+          - aarch64-linux
+          - x86_64-macos
+          - aarch64-macos
+          - x86_64-windows
+          
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Setup Zig
+      uses: goto-bus-stop/setup-zig@v2
+      with:
+        version: ${{ env.ZIG_VERSION }}
+        
+    - name: Cache Zig dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          .zig-cache
+          ~/.cache/zig
+        key: cross-${{ matrix.target }}-zig-${{ env.ZIG_VERSION }}-${{ hashFiles('build.zig', 'build.zig.zon') }}
+        
+    - name: Cross-compile
+      run: |
+        zig build -Doptimize=ReleaseSafe -Dtarget=${{ matrix.target }}
+        
+    - name: Package binary
+      run: |
+        mkdir -p dist
+        if [[ "${{ matrix.target }}" == *"windows"* ]]; then
+          cp zig-out/bin/lsp-mcp-server.exe dist/
+          cd dist && zip -r ../lsp-mcp-server-${{ matrix.target }}.zip .
+        else
+          cp zig-out/bin/lsp-mcp-server dist/
+          tar -czf lsp-mcp-server-${{ matrix.target }}.tar.gz -C dist .
+        fi
+        
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: lsp-mcp-server-${{ matrix.target }}
+        path: |
+          lsp-mcp-server-${{ matrix.target }}.*
+
+  docker:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Login to GitHub Container Registry
+      if: github.event_name != 'pull_request'
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ghcr.io/${{ github.repository }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=edge,branch=main
+          
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64,linux/arm64
+        push: ${{ github.event_name != 'pull_request' }}
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  benchmark:
+    name: Performance Benchmarks
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Setup Zig
+      uses: goto-bus-stop/setup-zig@v2
+      with:
+        version: ${{ env.ZIG_VERSION }}
+        
+    - name: Build optimized
+      run: zig build -Doptimize=ReleaseFast
+      
+    - name: Install ZLS for benchmarking
+      run: |
+        curl -L https://github.com/zigtools/zls/releases/latest/download/zls-x86_64-linux.tar.xz | tar -xJ
+        sudo mv zls /usr/local/bin/
+        
+    - name: Run benchmarks
+      run: |
+        echo "=== Startup Time Benchmark ==="
+        time ./zig-out/bin/lsp-mcp-server --help
+        
+        echo "=== Memory Usage Test ==="
+        timeout 5s ./zig-out/bin/lsp-mcp-server --server zls || true
+        
+    - name: Memory profiling
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y valgrind
+        
+        echo "=== Memory Profile ==="
+        timeout 10s valgrind --tool=massif --time-unit=ms \
+          ./zig-out/bin/lsp-mcp-server --server zls || true

@@ -1,0 +1,226 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release'
+        required: true
+        type: string
+
+env:
+  ZIG_VERSION: '0.13.0'
+
+jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      tag_name: ${{ steps.get_tag.outputs.tag_name }}
+    steps:
+    - name: Get tag name
+      id: get_tag
+      run: |
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          echo "tag_name=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+        else
+          echo "tag_name=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+        fi
+        
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ steps.get_tag.outputs.tag_name }}
+        
+    - name: Generate changelog
+      id: changelog
+      run: |
+        echo "## Changes" > CHANGELOG.md
+        if [ -f CHANGELOG.md ]; then
+          cat CHANGELOG.md >> RELEASE_NOTES.md
+        else
+          echo "See commit history for changes" >> RELEASE_NOTES.md
+        fi
+        
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.get_tag.outputs.tag_name }}
+        release_name: LSP-MCP Server ${{ steps.get_tag.outputs.tag_name }}
+        body_path: RELEASE_NOTES.md
+        draft: false
+        prerelease: ${{ contains(steps.get_tag.outputs.tag_name, '-') }}
+
+  build-and-upload:
+    name: Build and Upload (${{ matrix.target }})
+    needs: create-release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-linux
+            os: ubuntu-latest
+            archive: tar.gz
+          - target: aarch64-linux
+            os: ubuntu-latest
+            archive: tar.gz
+          - target: x86_64-macos
+            os: macos-latest
+            archive: tar.gz
+          - target: aarch64-macos
+            os: macos-latest
+            archive: tar.gz
+          - target: x86_64-windows
+            os: windows-latest
+            archive: zip
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ needs.create-release.outputs.tag_name }}
+        
+    - name: Setup Zig
+      uses: goto-bus-stop/setup-zig@v2
+      with:
+        version: ${{ env.ZIG_VERSION }}
+        
+    - name: Cache Zig dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          .zig-cache
+          ~/.cache/zig
+        key: release-${{ matrix.target }}-zig-${{ env.ZIG_VERSION }}-${{ hashFiles('build.zig', 'build.zig.zon') }}
+        
+    - name: Build release binary
+      run: |
+        zig build -Doptimize=ReleaseSafe -Dtarget=${{ matrix.target }}
+        
+    - name: Package binary (Unix)
+      if: matrix.archive == 'tar.gz'
+      run: |
+        mkdir -p release
+        cp zig-out/bin/lsp-mcp-server release/
+        cp README.md release/
+        cp INSTALL.md release/
+        cp config/lsp-mcp-server.json.example release/
+        tar -czf lsp-mcp-server-${{ needs.create-release.outputs.tag_name }}-${{ matrix.target }}.tar.gz -C release .
+        
+    - name: Package binary (Windows)
+      if: matrix.archive == 'zip'
+      run: |
+        mkdir release
+        copy zig-out\bin\lsp-mcp-server.exe release\
+        copy README.md release\
+        copy INSTALL.md release\
+        copy config\lsp-mcp-server.json.example release\
+        cd release && tar -czf ..\lsp-mcp-server-${{ needs.create-release.outputs.tag_name }}-${{ matrix.target }}.zip .
+        
+    - name: Upload Release Asset (tar.gz)
+      if: matrix.archive == 'tar.gz'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create-release.outputs.upload_url }}
+        asset_path: ./lsp-mcp-server-${{ needs.create-release.outputs.tag_name }}-${{ matrix.target }}.tar.gz
+        asset_name: lsp-mcp-server-${{ needs.create-release.outputs.tag_name }}-${{ matrix.target }}.tar.gz
+        asset_content_type: application/gzip
+        
+    - name: Upload Release Asset (zip)
+      if: matrix.archive == 'zip'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create-release.outputs.upload_url }}
+        asset_path: ./lsp-mcp-server-${{ needs.create-release.outputs.tag_name }}-${{ matrix.target }}.zip
+        asset_name: lsp-mcp-server-${{ needs.create-release.outputs.tag_name }}-${{ matrix.target }}.zip
+        asset_content_type: application/zip
+
+  docker-release:
+    name: Docker Release
+    needs: create-release
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ needs.create-release.outputs.tag_name }}
+        
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Login to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Login to Docker Hub
+      if: github.repository_owner != 'github'
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+        
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: |
+          ghcr.io/${{ github.repository }}
+          ${{ github.repository_owner }}/lsp-mcp-server
+        tags: |
+          type=semver,pattern={{version}},value=${{ needs.create-release.outputs.tag_name }}
+          type=semver,pattern={{major}}.{{minor}},value=${{ needs.create-release.outputs.tag_name }}
+          type=semver,pattern={{major}},value=${{ needs.create-release.outputs.tag_name }}
+          type=raw,value=latest,enable={{is_default_branch}}
+          
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  homebrew-release:
+    name: Update Homebrew Formula
+    needs: [create-release, build-and-upload]
+    runs-on: ubuntu-latest
+    if: ${{ !contains(needs.create-release.outputs.tag_name, '-') }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Update Homebrew formula
+      run: |
+        # Calculate SHA256 for the macOS x86_64 release
+        wget -O lsp-mcp-server.tar.gz \
+          "https://github.com/${{ github.repository }}/releases/download/${{ needs.create-release.outputs.tag_name }}/lsp-mcp-server-${{ needs.create-release.outputs.tag_name }}-x86_64-macos.tar.gz"
+        SHA256=$(sha256sum lsp-mcp-server.tar.gz | cut -d' ' -f1)
+        
+        # Update formula
+        sed -i "s/version \".*\"/version \"${{ needs.create-release.outputs.tag_name }}\"/" Formula/lsp-mcp-server.rb
+        sed -i "s/sha256 \".*\"/sha256 \"$SHA256\"/" Formula/lsp-mcp-server.rb
+        
+        echo "Updated Homebrew formula:"
+        cat Formula/lsp-mcp-server.rb
+        
+    - name: Create PR to Homebrew tap
+      # This would typically create a PR to a separate homebrew-tap repository
+      run: |
+        echo "Homebrew formula updated. Manual PR creation required."

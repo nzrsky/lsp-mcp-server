@@ -1,0 +1,114 @@
+name: Documentation Issue
+description: Report issues with documentation or suggest improvements
+title: "[Docs]: "
+labels: ["documentation", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve our documentation! Please provide details about the issue or improvement.
+
+  - type: dropdown
+    id: doc-type
+    attributes:
+      label: Documentation Type
+      description: What type of documentation is this about?
+      options:
+        - README
+        - Installation Guide (INSTALL.md)
+        - Configuration Examples
+        - API Documentation
+        - Code Comments
+        - GitHub Wiki
+        - Website/Homepage
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: issue-type
+    attributes:
+      label: Issue Type
+      description: What kind of documentation issue is this?
+      options:
+        - Missing Information
+        - Incorrect Information
+        - Unclear/Confusing
+        - Outdated Information
+        - Broken Links
+        - Formatting Issues
+        - Typos/Grammar
+        - Request for New Documentation
+    validations:
+      required: true
+
+  - type: input
+    id: location
+    attributes:
+      label: Location
+      description: Where is this documentation issue located?
+      placeholder: "e.g., README.md line 42, INSTALL.md section 'Docker Installation'"
+    validations:
+      required: false
+
+  - type: textarea
+    id: current-content
+    attributes:
+      label: Current Content
+      description: Quote the current problematic content (if applicable)
+      render: markdown
+    validations:
+      required: false
+
+  - type: textarea
+    id: issue-description
+    attributes:
+      label: Issue Description
+      description: Describe the documentation issue in detail
+      placeholder: "What's wrong or missing? What would you like to see improved?"
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggested-improvement
+    attributes:
+      label: Suggested Improvement
+      description: How should this be fixed or improved?
+      placeholder: "Specific suggestions for improvement..."
+    validations:
+      required: false
+
+  - type: input
+    id: user-type
+    attributes:
+      label: User Type
+      description: What type of user would benefit from this documentation improvement?
+      placeholder: "e.g., new users, developers, system administrators"
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Add any other context, screenshots, or examples
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      description: Are you willing to help improve this documentation?
+      options:
+        - label: I would be willing to submit a PR to fix this
+        - label: I can help review documentation changes
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Code of Conduct
+      description: By submitting this issue, you agree to follow our Code of Conduct
+      options:
+        - label: I agree to follow this project's Code of Conduct
+          required: true

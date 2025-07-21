@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or Discussion
+    url: https://github.com/username/lsp-mcp-server/discussions
+    about: Ask questions or start discussions about the project
+  - name: Security Vulnerability
+    url: https://github.com/username/lsp-mcp-server/security/advisories/new
+    about: Report security vulnerabilities privately
+  - name: Language Server Protocol Specification
+    url: https://microsoft.github.io/language-server-protocol/
+    about: Official LSP specification and documentation
+  - name: Model Context Protocol Specification
+    url: https://modelcontextprotocol.io/
+    about: Official MCP specification and documentation
