@@ -56,23 +56,42 @@ pub fn main() !void {
         return;
     };
 
+    std.debug.print("Main: Looking for server command: {s}\n", .{server_config.command});
+    
     // Update server configuration with actual command path
     var actual_config = server_config;
     actual_config.command = try findServerCommand(allocator, server_config.command) orelse {
         std.debug.print("Error: Server command '{s}' not found in PATH\n", .{server_config.command});
         return;
     };
+    
+    std.debug.print("Main: Found server command at: {s}\n", .{actual_config.command});
 
+    std.debug.print("Main: Initializing LSP client for command: {s}\n", .{actual_config.command});
+    
     // Initialize LSP client
     var lsp = try lsp_client.LspClient.init(allocator, actual_config);
     defer lsp.deinit();
-
-    // Start LSP server
-    try lsp.start();
-    defer lsp.stop();
+    
+    std.debug.print("Main: Starting LSP server...\n", .{});
+    
+    // Start LSP server with error handling
+    var lsp_available = true;
+    lsp.start() catch |err| {
+        std.debug.print("Warning: LSP server failed to start: {}. MCP server will run without LSP backend.\n", .{err});
+        lsp_available = false;
+    };
+    
+    if (lsp_available) {
+        defer lsp.stop();
+        std.debug.print("Main: LSP server started successfully!\n", .{});
+    } else {
+        std.debug.print("Main: Continuing without LSP server...\n", .{});
+    }
 
     // Initialize and start MCP server
-    var server = mcp.Server.init(allocator, &lsp);
+    const lsp_ptr = if (lsp_available) &lsp else null;
+    var server = mcp.Server.init(allocator, lsp_ptr);
     defer server.deinit();
 
     std.debug.print("Starting LSP-MCP bridge server for '{s}'...\n", .{server_name});

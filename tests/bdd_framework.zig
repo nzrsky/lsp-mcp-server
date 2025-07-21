@@ -18,7 +18,7 @@ pub const Scenario = struct {
             given,
             when,
             then,
-            and,
+            @"and",
             but,
         };
 
@@ -257,6 +257,7 @@ pub const StepDefinitions = struct {
         func: StepFunction,
         matches: [][]const u8,
     } {
+        _ = allocator;
         // Simple pattern matching - could be enhanced with regex
         var iterator = self.steps.iterator();
         while (iterator.next()) |entry| {
@@ -396,10 +397,10 @@ pub const Runner = struct {
 
         if (scenario_failed) {
             self.results.failed_scenarios += 1;
-            std.debug.print("    FAILED\n");
+            std.debug.print("    FAILED\n", .{});
         } else {
             self.results.passed_scenarios += 1;
-            std.debug.print("    PASSED\n");
+            std.debug.print("    PASSED\n", .{});
         }
     }
 
@@ -410,7 +411,7 @@ pub const Runner = struct {
             .given => "Given",
             .when => "When", 
             .then => "Then",
-            .and => "And",
+            .@"and" => "And",
             .but => "But",
         };
         
@@ -424,22 +425,22 @@ pub const Runner = struct {
             self.results.passed_steps += 1;
         } else {
             self.results.pending_steps += 1;
-            std.debug.print("      (PENDING - no step definition found)\n");
+            std.debug.print("      (PENDING - no step definition found)\n", .{});
             return error.PendingStep;
         }
     }
 
     pub fn runAll(self: *Runner) !void {
-        std.debug.print("Running BDD tests...\n\n");
+        std.debug.print("Running BDD tests...\n\n", .{});
         
         for (self.features.items) |feature| {
             try self.runFeature(feature);
-            std.debug.print("\n");
+            std.debug.print("\n", .{});
         }
 
         // Print summary
-        std.debug.print("Test Results:\n");
-        std.debug.print("=============\n");
+        std.debug.print("Test Results:\n", .{});
+        std.debug.print("=============\n", .{});
         std.debug.print("Scenarios: {d} total, {d} passed, {d} failed, {d} pending\n", .{
             self.results.total_scenarios,
             self.results.passed_scenarios,
@@ -454,7 +455,7 @@ pub const Runner = struct {
         });
 
         if (self.results.failures.items.len > 0) {
-            std.debug.print("\nFailures:\n");
+            std.debug.print("\nFailures:\n", .{});
             for (self.results.failures.items) |failure| {
                 std.debug.print("  Scenario: {s}\n", .{failure.scenario_name});
                 std.debug.print("    Step: {s}\n", .{failure.step_text});

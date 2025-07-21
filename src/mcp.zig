@@ -56,12 +56,12 @@ const ServerCapabilities = struct {
 
 pub const Server = struct {
     allocator: std.mem.Allocator,
-    lsp: *lsp_client.LspClient,
+    lsp: ?*lsp_client.LspClient,
     stdin: std.fs.File.Reader,
     stdout: std.fs.File.Writer,
     initialized: bool = false,
 
-    pub fn init(allocator: std.mem.Allocator, lsp: *lsp_client.LspClient) Server {
+    pub fn init(allocator: std.mem.Allocator, lsp: ?*lsp_client.LspClient) Server {
         return .{
             .allocator = allocator,
             .lsp = lsp,
@@ -77,9 +77,12 @@ pub const Server = struct {
     pub fn run(self: *Server) !void {
         var buf: [65536]u8 = undefined;
         
+        std.debug.print("MCP server ready, waiting for requests...\n", .{});
+        
         while (true) {
             // Read Content-Length header
             const header = try self.stdin.readUntilDelimiterOrEof(&buf, '\n') orelse break;
+            std.debug.print("Received header: '{s}'\n", .{header});
             if (!std.mem.startsWith(u8, header, "Content-Length: ")) continue;
             
             const len_str = header["Content-Length: ".len..];
@@ -91,6 +94,8 @@ pub const Server = struct {
             // Read JSON content
             if (content_length > buf.len) return error.MessageTooLarge;
             try self.stdin.readNoEof(buf[0..content_length]);
+            
+            std.debug.print("Received JSON: '{s}'\n", .{buf[0..content_length]});
             
             // Parse and handle request
             try self.handleRequest(buf[0..content_length]);
@@ -232,11 +237,14 @@ pub const Server = struct {
             return;
         };
 
-        const result = try self.lsp.hover(
-            uri.string,
-            @intCast(line.integer),
-            @intCast(character.integer),
-        );
+        const result = if (self.lsp) |lsp|
+            try lsp.hover(
+                uri.string,
+                @intCast(line.integer),
+                @intCast(character.integer),
+            )
+        else
+            null;
 
         var result_string = std.ArrayList(u8).init(self.allocator);
         defer result_string.deinit();
@@ -267,11 +275,14 @@ pub const Server = struct {
             return;
         };
 
-        const result = try self.lsp.definition(
-            uri.string,
-            @intCast(line.integer),
-            @intCast(character.integer),
-        );
+        const result = if (self.lsp) |lsp|
+            try lsp.definition(
+                uri.string,
+                @intCast(line.integer),
+                @intCast(character.integer),
+            )
+        else
+            null;
 
         var result_string = std.ArrayList(u8).init(self.allocator);
         defer result_string.deinit();
@@ -302,11 +313,14 @@ pub const Server = struct {
             return;
         };
 
-        const result = try self.lsp.completion(
-            uri.string,
-            @intCast(line.integer),
-            @intCast(character.integer),
-        );
+        const result = if (self.lsp) |lsp|
+            try lsp.completion(
+                uri.string,
+                @intCast(line.integer),
+                @intCast(character.integer),
+            )
+        else
+            null;
 
         var result_string = std.ArrayList(u8).init(self.allocator);
         defer result_string.deinit();

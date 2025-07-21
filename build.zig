@@ -40,6 +40,13 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     
+    bdd_tests.root_module.addImport("config", b.createModule(.{
+        .root_source_file = b.path("src/config.zig"),
+    }));
+    bdd_tests.root_module.addImport("lsp_client", b.createModule(.{
+        .root_source_file = b.path("src/lsp_client.zig"),
+    }));
+    
     const bdd_run_cmd = b.addRunArtifact(bdd_tests);
     bdd_run_cmd.step.dependOn(b.getInstallStep());
     

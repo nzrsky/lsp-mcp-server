@@ -1,0 +1,11 @@
+*.pyc
+
+/.classpath
+/.project
+
+/target/
+
+/.vscode/ltex.*.txt
+/.vscode/settings.json
+.zig-cache/
+zig-out/

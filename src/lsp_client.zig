@@ -352,6 +352,7 @@ pub const LspClient = struct {
     }
 
     fn initialize(self: *LspClient) !void {
+        std.debug.print("LSP Client: Initializing LSP server...\n", .{});
         const init_options = if (self.config.initialization_options) |opts| opts else json.Value{ .null = {} };
         
         const params = .{
@@ -364,8 +365,13 @@ pub const LspClient = struct {
         };
 
         const id = try self.sendRequest(LSP_METHODS.INITIALIZE, params);
-        const response = try self.waitForResponse(id, 10000);
+        std.debug.print("LSP Client: Sent initialize request, waiting for response...\n", .{});
+        const response = self.waitForResponse(id, 3000) catch |err| {
+            std.debug.print("LSP Client: Initialize failed after 3s: {}\n", .{err});
+            return err;
+        };
         defer self.allocator.free(response);
+        std.debug.print("LSP Client: Initialize successful!\n", .{});
 
         // Send initialized notification
         try self.sendNotification(LSP_METHODS.INITIALIZED, .{});

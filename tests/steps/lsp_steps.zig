@@ -1,8 +1,8 @@
 const std = @import("std");
 const testing = std.testing;
 const bdd = @import("../bdd_framework.zig");
-const config = @import("../../src/config.zig");
-const lsp_client = @import("../../src/lsp_client.zig");
+const config = @import("config");
+const lsp_client = @import("lsp_client");
 
 // LSP-specific step definitions
 pub fn registerLspSteps(step_definitions: *bdd.StepDefinitions) !void {
