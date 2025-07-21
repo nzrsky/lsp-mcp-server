@@ -4,9 +4,9 @@
     <img src="https://repology.org/badge/vertical-allrepos/lsp-mcp-server.svg" alt="Packaging status" align="right">
 </a>
 
-[![Build Status](https://github.com/username/lsp-mcp-server/workflows/CI/badge.svg)](https://github.com/username/lsp-mcp-server/actions)
-[![Release](https://img.shields.io/github/v/release/username/lsp-mcp-server)](https://github.com/username/lsp-mcp-server/releases)
-[![Docker Pulls](https://img.shields.io/docker/pulls/username/lsp-mcp-server)](https://hub.docker.com/r/username/lsp-mcp-server)
+[![Build Status](https://github.com/nzrsky/lsp-mcp-server/workflows/CI/badge.svg)](https://github.com/nzrsky/lsp-mcp-server/actions)
+[![Release](https://img.shields.io/github/v/release/nzrsky/lsp-mcp-server)](https://github.com/nzrsky/lsp-mcp-server/releases)
+[![Docker Pulls](https://img.shields.io/docker/pulls/nzrsky/lsp-mcp-server)](https://hub.docker.com/r/nzrsky/lsp-mcp-server)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Zig Version](https://img.shields.io/badge/Zig-0.13.0-orange)](https://ziglang.org/)
 
@@ -18,13 +18,13 @@ A high-performance bridge server written in Zig that connects **Language Server 
 
 #### Homebrew (macOS & Linux)
 ```bash
-brew install username/tap/lsp-mcp-server
+brew install nzrsky/tap/lsp-mcp-server
 ```
 
 #### Nix/NixOS
 ```bash
 # Nix profile
-nix profile install github:username/lsp-mcp-server
+nix profile install github:nzrsky/lsp-mcp-server
 
 # NixOS configuration.nix
 services.lsp-mcp-server.enable = true;
@@ -33,8 +33,8 @@ services.lsp-mcp-server.enable = true;
 #### Debian/Ubuntu
 ```bash
 # Add repository
-curl -fsSL https://github.com/username/lsp-mcp-server/releases/latest/download/pubkey.gpg | sudo apt-key add -
-echo "deb https://github.com/username/lsp-mcp-server/releases/latest/download/ stable main" | sudo tee /etc/apt/sources.list.d/lsp-mcp-server.list
+curl -fsSL https://github.com/nzrsky/lsp-mcp-server/releases/latest/download/pubkey.gpg | sudo apt-key add -
+echo "deb https://github.com/nzrsky/lsp-mcp-server/releases/latest/download/ stable main" | sudo tee /etc/apt/sources.list.d/lsp-mcp-server.list
 
 # Install
 sudo apt update && sudo apt install lsp-mcp-server
@@ -104,7 +104,7 @@ flatpak install flathub org.lsp_mcp_server.LspMcpServer
 #### AppImage (Linux)
 ```bash
 # Download and run
-wget https://github.com/username/lsp-mcp-server/releases/latest/download/lsp-mcp-server-x86_64.AppImage
+wget https://github.com/nzrsky/lsp-mcp-server/releases/latest/download/lsp-mcp-server-x86_64.AppImage
 chmod +x lsp-mcp-server-x86_64.AppImage
 ./lsp-mcp-server-x86_64.AppImage
 ```
@@ -119,15 +119,15 @@ smithery install lsp-mcp-server
 #### Docker
 ```bash
 # Official image
-docker pull ghcr.io/username/lsp-mcp-server:latest
+docker pull ghcr.io/nzrsky/lsp-mcp-server:latest
 
 # Docker Hub
-docker pull username/lsp-mcp-server:latest
+docker pull nzrsky/lsp-mcp-server:latest
 ```
 
 #### Podman
 ```bash
-podman pull ghcr.io/username/lsp-mcp-server:latest
+podman pull ghcr.io/nzrsky/lsp-mcp-server:latest
 ```
 
 ### Language-Specific Package Managers
@@ -144,13 +144,13 @@ npm install -g lsp-mcp-server
 
 #### Go
 ```bash
-go install github.com/username/lsp-mcp-server@latest
+go install github.com/nzrsky/lsp-mcp-server@latest
 ```
 
 ### Manual Installation
 
 #### Pre-built Binaries
-Download from [GitHub Releases](https://github.com/username/lsp-mcp-server/releases):
+Download from [GitHub Releases](https://github.com/nzrsky/lsp-mcp-server/releases):
 - **Linux**: `lsp-mcp-server-linux-x86_64.tar.gz`
 - **macOS**: `lsp-mcp-server-macos-x86_64.tar.gz` / `lsp-mcp-server-macos-arm64.tar.gz`
 - **Windows**: `lsp-mcp-server-windows-x86_64.zip`
@@ -158,7 +158,7 @@ Download from [GitHub Releases](https://github.com/username/lsp-mcp-server/relea
 
 #### Build from Source
 ```bash
-git clone https://github.com/username/lsp-mcp-server.git
+git clone https://github.com/nzrsky/lsp-mcp-server.git
 cd lsp-mcp-server
 zig build -Doptimize=ReleaseSafe
 sudo make install
@@ -169,19 +169,19 @@ sudo make install
 #### GitHub Actions
 ```yaml
 - name: Setup LSP-MCP Server
-  uses: username/setup-lsp-mcp-server@v1
+  uses: nzrsky/setup-lsp-mcp-server@v1
   with:
     version: 'latest'
 ```
 
 #### GitLab CI
 ```yaml
-image: ghcr.io/username/lsp-mcp-server:latest
+image: ghcr.io/nzrsky/lsp-mcp-server:latest
 ```
 
 #### Kubernetes
 ```bash
-kubectl apply -f https://github.com/username/lsp-mcp-server/releases/latest/download/kubernetes.yaml
+kubectl apply -f https://github.com/nzrsky/lsp-mcp-server/releases/latest/download/kubernetes.yaml
 ```
 
 ---
@@ -201,11 +201,11 @@ kubectl apply -f https://github.com/username/lsp-mcp-server/releases/latest/down
 
 ```bash
 # Run with Docker (fastest)
-docker run --rm -v "$(pwd):/workspace" ghcr.io/username/lsp-mcp-server:latest --server zls
+docker run --rm -v "$(pwd):/workspace" ghcr.io/nzrsky/lsp-mcp-server:latest --server zls
 
 # Install with package manager
-brew install username/tap/lsp-mcp-server  # macOS/Linux
-nix profile install github:username/lsp-mcp-server  # Nix
+brew install nzrsky/tap/lsp-mcp-server  # macOS/Linux
+nix profile install github:nzrsky/lsp-mcp-server  # Nix
 sudo apt install lsp-mcp-server  # Ubuntu/Debian
 sudo dnf install lsp-mcp-server  # Fedora/RHEL
 
@@ -354,7 +354,7 @@ zig build test-bdd
 
 ```bash
 # Clone and start development container
-git clone https://github.com/username/lsp-mcp-server.git
+git clone https://github.com/nzrsky/lsp-mcp-server.git
 cd lsp-mcp-server
 docker-compose up lsp-mcp-dev
 ```
@@ -362,7 +362,7 @@ docker-compose up lsp-mcp-dev
 ### Production Deployment
 
 ```dockerfile
-FROM ghcr.io/username/lsp-mcp-server:latest
+FROM ghcr.io/nzrsky/lsp-mcp-server:latest
 
 # Add your language servers
 RUN npm install -g typescript-language-server
@@ -380,12 +380,12 @@ CMD ["--server", "typescript-language-server"]
 
 | Platform | Command |
 |----------|---------|
-| **Homebrew** | `brew install username/tap/lsp-mcp-server` |
-| **Nix** | `nix profile install github:username/lsp-mcp-server` |
+| **Homebrew** | `brew install nzrsky/tap/lsp-mcp-server` |
+| **Nix** | `nix profile install github:nzrsky/lsp-mcp-server` |
 | **APT** | `sudo apt install lsp-mcp-server` |
 | **YUM/DNF** | `sudo dnf install lsp-mcp-server` |
 | **Smithery** | `smithery install lsp-mcp-server` |
-| **Docker** | `docker pull ghcr.io/username/lsp-mcp-server` |
+| **Docker** | `docker pull ghcr.io/nzrsky/lsp-mcp-server` |
 
 ### System Integration
 
@@ -404,7 +404,7 @@ We welcome contributions! Please see our [contributing guidelines](CONTRIBUTING.
 
 ```bash
 # Clone the repository
-git clone https://github.com/username/lsp-mcp-server.git
+git clone https://github.com/nzrsky/lsp-mcp-server.git
 cd lsp-mcp-server
 
 # Install dependencies (Nix)
@@ -506,6 +506,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Built with ❤️ in Zig | Powered by LSP and MCP**
 
-[GitHub](https://github.com/username/lsp-mcp-server) • [Documentation](https://github.com/username/lsp-mcp-server/wiki) • [Issues](https://github.com/username/lsp-mcp-server/issues) • [Discussions](https://github.com/username/lsp-mcp-server/discussions)
+[GitHub](https://github.com/nzrsky/lsp-mcp-server) • [Documentation](https://github.com/nzrsky/lsp-mcp-server/wiki) • [Issues](https://github.com/nzrsky/lsp-mcp-server/issues) • [Discussions](https://github.com/nzrsky/lsp-mcp-server/discussions)
 
 </div>
