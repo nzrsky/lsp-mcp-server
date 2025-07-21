@@ -1,0 +1,11 @@
+lsp-mcp-server (0.1.0-1) unstable; urgency=medium
+
+  * Initial release of lsp-mcp-server
+  * Generic LSP to MCP bridge server written in Zig
+  * Support for multiple language servers (ZLS, rust-analyzer, gopls, etc.)
+  * Integration with AI coding assistants (Claude Code, Claude Desktop, etc.)
+  * Comprehensive BDD test suite
+  * Docker and container support
+  * Configurable timeout handling and graceful fallbacks
+
+ -- Claude AI Assistant <noreply@anthropic.com>  Mon, 21 Jul 2025 17:00:00 +0000

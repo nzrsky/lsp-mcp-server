@@ -1,0 +1,89 @@
+name: lsp-mcp-server
+description: "Language Server Protocol to Model Context Protocol bridge server in Zig"
+version: "0.1.0"
+author: "Claude AI Assistant"
+license: "MIT"
+homepage: "https://github.com/username/lsp-mcp-server"
+repository: "https://github.com/username/lsp-mcp-server"
+
+# Smithery package configuration
+package:
+  type: "binary"
+  platforms:
+    - linux-x86_64
+    - linux-aarch64
+    - darwin-x86_64
+    - darwin-aarch64
+    - windows-x86_64
+
+# Build configuration
+build:
+  strategy: "source"
+  source:
+    url: "https://github.com/username/lsp-mcp-server/archive/v{version}.tar.gz"
+    extract_dir: "lsp-mcp-server-{version}"
+  
+  dependencies:
+    build:
+      - zig@0.13.0
+    runtime:
+      - zls  # Optional but recommended
+  
+  scripts:
+    build: |
+      zig build -Doptimize=ReleaseSafe
+    
+    install: |
+      mkdir -p {prefix}/bin
+      cp zig-out/bin/lsp-mcp-server {prefix}/bin/
+      chmod +x {prefix}/bin/lsp-mcp-server
+    
+    test: |
+      {prefix}/bin/lsp-mcp-server --help
+
+# Configuration
+config:
+  env:
+    LSP_MCP_CONFIG: "{config_dir}/lsp-mcp-server.json"
+  
+  files:
+    - src: "config/lsp-mcp-server.json.example"
+      dst: "{config_dir}/lsp-mcp-server.json.example"
+      mode: "0644"
+
+# Integration with language servers
+integrations:
+  zls:
+    description: "Zig Language Server"
+    optional: true
+    install_hint: "smithery install zls"
+  
+  rust-analyzer:
+    description: "Rust Language Server"  
+    optional: true
+    install_hint: "smithery install rust-analyzer"
+  
+  gopls:
+    description: "Go Language Server"
+    optional: true
+    install_hint: "smithery install gopls"
+
+# CLI help
+help:
+  usage: "lsp-mcp-server [OPTIONS]"
+  options:
+    - name: "--server"
+      description: "Language server to use (zls, rust-analyzer, gopls, etc.)"
+      default: "zls"
+    - name: "--config"
+      description: "Configuration file path"
+    - name: "--help"
+      description: "Show help message"
+  
+  examples:
+    - description: "Start with ZLS (default)"
+      command: "lsp-mcp-server"
+    - description: "Start with Rust Analyzer"
+      command: "lsp-mcp-server --server rust-analyzer"
+    - description: "Use custom configuration"
+      command: "lsp-mcp-server --config /path/to/config.json"

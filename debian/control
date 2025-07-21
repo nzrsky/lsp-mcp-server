@@ -1,0 +1,44 @@
+Source: lsp-mcp-server
+Section: devel
+Priority: optional
+Maintainer: Claude AI Assistant <noreply@anthropic.com>
+Build-Depends: debhelper-compat (= 13),
+               zig (>= 0.13.0),
+               curl,
+               ca-certificates
+Standards-Version: 4.6.0
+Homepage: https://github.com/username/lsp-mcp-server
+Vcs-Git: https://github.com/username/lsp-mcp-server.git
+Vcs-Browser: https://github.com/username/lsp-mcp-server
+
+Package: lsp-mcp-server
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends},
+         ca-certificates
+Recommends: zls,
+            rust-analyzer,
+            gopls,
+            typescript-language-server,
+            python3-pylsp
+Suggests: nodejs,
+          npm,
+          python3-pip,
+          golang-go,
+          rustc
+Description: Language Server Protocol to Model Context Protocol bridge
+ lsp-mcp-server is a bridge server written in Zig that connects Language
+ Server Protocol (LSP) servers to Model Context Protocol (MCP) clients.
+ This enables AI coding assistants like Claude Code, Claude Desktop,
+ Gemini CLI, and GitHub Copilot to interact with any LSP-compatible
+ language server.
+ .
+ Features:
+  * Generic LSP client supporting any language server
+  * MCP server implementation for AI assistant integration
+  * Support for Zig, Rust, Go, TypeScript, Python, and more
+  * Configurable server selection and settings
+  * Built-in timeout handling and graceful fallbacks
+ .
+ The server can work with multiple language servers including ZLS (Zig),
+ rust-analyzer (Rust), gopls (Go), typescript-language-server (TypeScript),
+ and python-lsp-server (Python).

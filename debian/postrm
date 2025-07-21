@@ -1,0 +1,32 @@
+#!/bin/bash
+
+set -e
+
+case "$1" in
+    purge)
+        # Remove system user and directories on purge
+        if getent passwd lsp-mcp >/dev/null; then
+            deluser --system lsp-mcp >/dev/null || true
+        fi
+        
+        # Remove data directories
+        rm -rf /var/lib/lsp-mcp-server
+        rm -rf /var/log/lsp-mcp-server
+        
+        # Remove configuration (only on purge)
+        rm -rf /etc/lsp-mcp-server
+        ;;
+        
+    remove)
+        # Stop and disable service
+        if [ -d /run/systemd/system ]; then
+            systemctl stop lsp-mcp-server >/dev/null 2>&1 || true
+            systemctl disable lsp-mcp-server >/dev/null 2>&1 || true
+            systemctl --system daemon-reload >/dev/null || true
+        fi
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0

@@ -1,0 +1,37 @@
+#!/usr/bin/make -f
+
+# See debhelper(7) (uncomment to enable)
+# output every command that modifies files on the build system.
+export DH_VERBOSE = 1
+
+# Enable all hardening options
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	zig build -Doptimize=ReleaseSafe
+
+override_dh_auto_install:
+	# Install binary
+	install -D -m 755 zig-out/bin/lsp-mcp-server $(DESTDIR)/usr/bin/lsp-mcp-server
+	
+	# Install configuration directory
+	install -d $(DESTDIR)/etc/lsp-mcp-server
+	
+	# Install example configuration
+	install -D -m 644 config/lsp-mcp-server.json.example $(DESTDIR)/etc/lsp-mcp-server/lsp-mcp-server.json.example
+	
+	# Install systemd service file
+	install -D -m 644 debian/lsp-mcp-server.service $(DESTDIR)/lib/systemd/system/lsp-mcp-server.service
+	
+	# Install documentation
+	install -D -m 644 README.md $(DESTDIR)/usr/share/doc/lsp-mcp-server/README.md
+
+override_dh_auto_test:
+	# Run basic functionality test
+	./zig-out/bin/lsp-mcp-server --help
+
+override_dh_auto_clean:
+	rm -rf .zig-cache zig-out

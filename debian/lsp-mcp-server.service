@@ -1,0 +1,30 @@
+[Unit]
+Description=LSP-MCP Bridge Server
+Documentation=https://github.com/username/lsp-mcp-server
+After=network.target
+
+[Service]
+Type=simple
+User=lsp-mcp
+Group=lsp-mcp
+ExecStart=/usr/bin/lsp-mcp-server --server zls
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=10
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/lsp-mcp-server /var/log/lsp-mcp-server
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+
+# Environment
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+Environment=LSP_MCP_CONFIG=/etc/lsp-mcp-server/lsp-mcp-server.json
+
+[Install]
+WantedBy=multi-user.target

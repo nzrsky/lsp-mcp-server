@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  lsp-mcp-server:
+    build: .
+    container_name: lsp-mcp-server
+    volumes:
+      # Mount your project directory for LSP access
+      - ${PWD}:/workspace:ro
+      # Mount a directory for persistent LSP data
+      - lsp-data:/home/lspuser/.cache
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+    environment:
+      - LSP_SERVER=${LSP_SERVER:-zls}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    command: ["--server", "${LSP_SERVER:-zls}"]
+    
+  # Development environment with all language servers
+  lsp-mcp-dev:
+    build: .
+    container_name: lsp-mcp-dev
+    volumes:
+      - ${PWD}:/workspace
+      - lsp-data:/home/lspuser/.cache
+      - ~/.gitconfig:/home/lspuser/.gitconfig:ro
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+    environment:
+      - LSP_SERVER=${LSP_SERVER:-zls}
+      - LOG_LEVEL=debug
+    command: ["tail", "-f", "/dev/null"]  # Keep container running for development
+
+volumes:
+  lsp-data:
+    driver: local

@@ -1,0 +1,37 @@
+#!/bin/bash
+
+set -e
+
+case "$1" in
+    configure)
+        # Create system user for the service
+        if ! getent passwd lsp-mcp >/dev/null; then
+            adduser --system --group --home /var/lib/lsp-mcp-server \
+                    --no-create-home --disabled-login \
+                    --gecos "LSP-MCP Server" lsp-mcp
+        fi
+        
+        # Create directories
+        install -d -o lsp-mcp -g lsp-mcp -m 755 /var/lib/lsp-mcp-server
+        install -d -o lsp-mcp -g lsp-mcp -m 755 /var/log/lsp-mcp-server
+        
+        # Create default config if it doesn't exist
+        if [ ! -f /etc/lsp-mcp-server/lsp-mcp-server.json ]; then
+            cp /etc/lsp-mcp-server/lsp-mcp-server.json.example \
+               /etc/lsp-mcp-server/lsp-mcp-server.json
+        fi
+        
+        # Set proper permissions
+        chown root:lsp-mcp /etc/lsp-mcp-server/lsp-mcp-server.json
+        chmod 640 /etc/lsp-mcp-server/lsp-mcp-server.json
+        
+        # Reload systemd
+        if [ -d /run/systemd/system ]; then
+            systemctl --system daemon-reload >/dev/null || true
+        fi
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0

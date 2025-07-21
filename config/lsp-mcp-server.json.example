@@ -1,0 +1,182 @@
+{
+  "servers": {
+    "zls": {
+      "command": "zls",
+      "args": [],
+      "languages": ["zig"],
+      "working_directory": null,
+      "root_uri": null,
+      "initialization_options": {},
+      "client_capabilities": {
+        "textDocument": {
+          "hover": {
+            "dynamicRegistration": true,
+            "contentFormat": ["markdown", "plaintext"]
+          },
+          "definition": {
+            "dynamicRegistration": true
+          },
+          "completion": {
+            "dynamicRegistration": true,
+            "completionItem": {
+              "snippetSupport": true,
+              "documentationFormat": ["markdown", "plaintext"]
+            }
+          }
+        }
+      }
+    },
+    "rust-analyzer": {
+      "command": "rust-analyzer",
+      "args": [],
+      "languages": ["rust"],
+      "working_directory": null,
+      "root_uri": null,
+      "initialization_options": {
+        "cargo": {
+          "buildScripts": {
+            "enable": true
+          }
+        },
+        "procMacro": {
+          "enable": true
+        }
+      },
+      "client_capabilities": {
+        "textDocument": {
+          "hover": {
+            "dynamicRegistration": true,
+            "contentFormat": ["markdown", "plaintext"]
+          },
+          "definition": {
+            "dynamicRegistration": true
+          },
+          "completion": {
+            "dynamicRegistration": true,
+            "completionItem": {
+              "snippetSupport": true,
+              "documentationFormat": ["markdown", "plaintext"]
+            }
+          }
+        }
+      }
+    },
+    "gopls": {
+      "command": "gopls",
+      "args": [],
+      "languages": ["go"],
+      "working_directory": null,
+      "root_uri": null,
+      "initialization_options": {
+        "usePlaceholders": true,
+        "completeUnimported": true,
+        "staticcheck": true
+      },
+      "client_capabilities": {
+        "textDocument": {
+          "hover": {
+            "dynamicRegistration": true,
+            "contentFormat": ["markdown", "plaintext"]
+          },
+          "definition": {
+            "dynamicRegistration": true
+          },
+          "completion": {
+            "dynamicRegistration": true,
+            "completionItem": {
+              "snippetSupport": true,
+              "documentationFormat": ["markdown", "plaintext"]
+            }
+          }
+        }
+      }
+    },
+    "typescript-language-server": {
+      "command": "typescript-language-server",
+      "args": ["--stdio"],
+      "languages": ["typescript", "javascript"],
+      "working_directory": null,
+      "root_uri": null,
+      "initialization_options": {},
+      "client_capabilities": {
+        "textDocument": {
+          "hover": {
+            "dynamicRegistration": true,
+            "contentFormat": ["markdown", "plaintext"]
+          },
+          "definition": {
+            "dynamicRegistration": true
+          },
+          "completion": {
+            "dynamicRegistration": true,
+            "completionItem": {
+              "snippetSupport": true,
+              "documentationFormat": ["markdown", "plaintext"]
+            }
+          }
+        }
+      }
+    },
+    "pylsp": {
+      "command": "pylsp",
+      "args": [],
+      "languages": ["python"],
+      "working_directory": null,
+      "root_uri": null,
+      "initialization_options": {
+        "plugins": {
+          "jedi_completion": {"enabled": true},
+          "jedi_hover": {"enabled": true},
+          "jedi_references": {"enabled": true},
+          "jedi_signature_help": {"enabled": true},
+          "jedi_symbols": {"enabled": true}
+        }
+      },
+      "client_capabilities": {
+        "textDocument": {
+          "hover": {
+            "dynamicRegistration": true,
+            "contentFormat": ["markdown", "plaintext"]
+          },
+          "definition": {
+            "dynamicRegistration": true
+          },
+          "completion": {
+            "dynamicRegistration": true,
+            "completionItem": {
+              "snippetSupport": true,
+              "documentationFormat": ["markdown", "plaintext"]
+            }
+          }
+        }
+      }
+    }
+  },
+  "mcp": {
+    "server_info": {
+      "name": "lsp-mcp-server",
+      "version": "0.1.0"
+    },
+    "protocol_version": "0.1.0",
+    "timeout_ms": 5000,
+    "tools": {
+      "hover": {
+        "description": "Get hover information at a specific position in a file",
+        "enabled": true
+      },
+      "definition": {
+        "description": "Go to definition of symbol at a specific position",
+        "enabled": true
+      },
+      "completion": {
+        "description": "Get code completions at a specific position",
+        "enabled": true
+      }
+    }
+  },
+  "logging": {
+    "level": "info",
+    "file": null,
+    "format": "text"
+  }
+}
