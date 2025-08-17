@@ -34,7 +34,7 @@ jobs:
         fi
         
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       with:
         ref: ${{ steps.get_tag.outputs.tag_name }}
         
@@ -112,7 +112,7 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       with:
         ref: ${{ needs.create-release.outputs.tag_name }}
         
@@ -181,7 +181,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       with:
         ref: ${{ needs.create-release.outputs.tag_name }}
         
@@ -233,7 +233,7 @@ jobs:
     if: ${{ !contains(needs.create-release.outputs.tag_name, '-') }}
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       
     - name: Update Homebrew formula
       run: |
