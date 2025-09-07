@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Cleanup old artifacts
-      uses: actions/github-script@v7
+      uses: actions/github-script@v8
       with:
         script: |
           // Get all artifacts
@@ -54,7 +54,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Cleanup old caches
-      uses: actions/github-script@v7
+      uses: actions/github-script@v8
       with:
         script: |
           // Get all caches
@@ -97,7 +97,7 @@ jobs:
     if: github.repository_owner == 'username'  # Only run for main repository
     steps:
     - name: Cleanup old Docker images
-      uses: actions/github-script@v7
+      uses: actions/github-script@v8
       with:
         script: |
           // Get all package versions
